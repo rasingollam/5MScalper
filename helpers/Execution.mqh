@@ -57,7 +57,7 @@ public:
          if(ticket>0 && OwnSelected()) { trade.PositionClose(ticket); Accepted(); }
       }
    }
-   bool Enter(ScalperSignal &s,double rr,double moneyRisk,double percentRisk,double remaining,double commission,double maxSpread,double spreadFraction,int deviation)
+   bool Enter(ScalperSignal &s,double targetR,double moneyRisk,double percentRisk,double remaining,double commission,double maxSpread,double spreadFraction,int deviation)
    {
       lastReason=""; retryable=false;
       if(SymbolBusy()) return Reject("symbol busy");
@@ -71,7 +71,7 @@ public:
       if(q.ask-q.bid>maxSpread*pip+_Point*0.01 || q.ask-q.bid>distance*spreadFraction+_Point*0.01)
       { retryable=true; return Reject(StringFormat("spread %.2f pips, limit %.2f; spread/stop %.1f%%, limit %.1f%%",(q.ask-q.bid)/pip,maxSpread,100*(q.ask-q.bid)/distance,100*spreadFraction)); }
       if((s.direction>0?q.bid-sl:sl-q.ask)<minStop) return Reject("SL inside broker stop distance");
-      double tp=Price(entry+s.direction*rr*distance,s.direction>0);
+      double tp=Price(entry+s.direction*targetR*distance,s.direction>0);
       if((s.direction>0?tp-q.bid:q.ask-tp)<minStop) return Reject("TP inside broker stop distance");
       if(s.barrier>0 && s.direction*(tp-s.barrier)>=0) return Reject("nearby pivot leaves insufficient target room");
       double budget=MathMin(MathMin(moneyRisk,AccountInfoDouble(ACCOUNT_EQUITY)*percentRisk/100.0),remaining);

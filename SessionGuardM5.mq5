@@ -1,7 +1,7 @@
 #property copyright "SessionGuard M5"
-#property version "1.11"
+#property version "1.20"
 #property strict
-#property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards."
+#property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards and an optional early take-profit mode."
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090901;
@@ -29,6 +29,7 @@ input bool InpOpposingTrendVeto=false;
 input bool InpUseTrendFilter=false;
 input bool InpUseCandleFilter=false;
 input double InpRewardRisk=1.5;
+input double InpEarlyTargetR=0.5;
 input double InpATRBuffer=0.2;
 input double InpMaxCandleATR=1.5;
 input double InpMaxSpreadPips=1.0;
@@ -70,6 +71,7 @@ bool InSession(datetime now)
 void Display()
 {
    Comment("SessionGuard M5 | ",_Symbol,"\n",g_status,
+           (InpEarlyTargetR>0?StringFormat("\nTake profit: %.2fR (early target, trailing off)",InpEarlyTargetR):StringFormat("\nTake profit: %.2fR",InpRewardRisk)),
            (MQLInfoInteger(MQL_TESTER)?"\nTESTER: price-only, news bypassed; manual broker UTC offset":""),
            "\nDaily account equity P/L: ",DoubleToString(guard.pnl,2)," ",AccountInfoString(ACCOUNT_CURRENCY),
            " | Entries: ",guard.entries,"/",InpMaxEntries,
@@ -86,10 +88,10 @@ bool Maintain(datetime now)
    {
       pending=false; g_status="Outside trading sessions";
       if(InpCloseAtSessionEnd) execution.CloseAll(now);
-      else if(InpTrailing) execution.Trail(now,InpRewardRisk,InpCommissionPerLot);
+      else if(InpTrailing && InpEarlyTargetR<=0) execution.Trail(now,InpRewardRisk,InpCommissionPerLot);
       return false;
    }
-   if(InpTrailing) execution.Trail(now,InpRewardRisk,InpCommissionPerLot);
+   if(InpTrailing && InpEarlyTargetR<=0) execution.Trail(now,InpRewardRisk,InpCommissionPerLot);
    return true;
 }
 int OnInit()
@@ -97,7 +99,7 @@ int OnInit()
    if(InpSweepLookback<2 || InpSweepLookback>100) { Print("Sweep lookback must be 2..100 closed M5 candles."); return INIT_PARAMETERS_INCORRECT; }
    if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="EUR" || SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD")
    { Print("Attach SessionGuard M5 to your broker's EURUSD symbol (suffixes supported)."); return INIT_PARAMETERS_INCORRECT; }
-   if(InpMagic==0 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpRewardRisk<1 || InpATRBuffer<0 || InpMaxCandleATR<=0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpNewsWindowMinutes<1 || InpServerUTCOffsetHours< -14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd)
+   if(InpMagic==0 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpATRBuffer<0 || InpMaxCandleATR<=0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpNewsWindowMinutes<1 || InpServerUTCOffsetHours< -14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd)
       return INIT_PARAMETERS_INCORRECT;
    if(MQLInfoInteger(MQL_TESTER))
    {
@@ -158,7 +160,8 @@ void OnTick()
             if(InpOpposingTrendVeto && signals.OpposingTrend(setup.direction)) { g_status="Setup expired: strong opposing trend"; Display(); return; }
             double remaining=MathMin(InpDailyMaxLoss+guard.pnl,InpDailyDrawdown-guard.drawdown);
             g_attempts++;
-            bool ok=execution.Enter(setup,InpRewardRisk,InpRiskMoney,InpRiskPercent,remaining,InpCommissionPerLot,InpMaxSpreadPips,InpMaxSpreadStopFraction,InpDeviationPoints);
+            double targetR=InpEarlyTargetR>0?InpEarlyTargetR:InpRewardRisk;
+            bool ok=execution.Enter(setup,targetR,InpRiskMoney,InpRiskPercent,remaining,InpCommissionPerLot,InpMaxSpreadPips,InpMaxSpreadStopFraction,InpDeviationPoints);
             if(ok) g_opened++;
             if(!ok && execution.retryable) { pending=true; g_nextEntryCheck=now+30; }
             g_status=ok?"Trade opened":"Setup skipped: "+execution.lastReason;
