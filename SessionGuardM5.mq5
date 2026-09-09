@@ -1,7 +1,7 @@
 #property copyright "SessionGuard M5"
-#property version "1.02"
+#property version "1.10"
 #property strict
-#property description "EURUSD M5 pullback scalper with M15 trend confirmation and daily equity guards."
+#property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards."
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090901;
@@ -21,12 +21,15 @@ input bool InpCloseAtSessionEnd=true;
 input bool InpAutoServerUTC=true;
 input double InpServerUTCOffsetHours=2.0;
 input group "Signal and execution"
+input int InpSweepLookback=6;
+input bool InpUseTrendFilter=false;
+input bool InpUseCandleFilter=false;
 input double InpRewardRisk=1.5;
 input double InpATRBuffer=0.2;
 input double InpMaxCandleATR=1.5;
 input double InpMaxSpreadPips=1.0;
 input double InpMaxSpreadStopFraction=0.15;
-input bool InpUsePivotFilter=true;
+input bool InpUsePivotFilter=false;
 input double InpCommissionPerLot=7.0;
 input int InpDeviationPoints=10;
 input bool InpTrailing=true;
@@ -87,6 +90,7 @@ bool Maintain(datetime now)
 }
 int OnInit()
 {
+   if(InpSweepLookback<2 || InpSweepLookback>100) { Print("Sweep lookback must be 2..100 closed M5 candles."); return INIT_PARAMETERS_INCORRECT; }
    if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="EUR" || SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD")
    { Print("Attach SessionGuard M5 to your broker's EURUSD symbol (suffixes supported)."); return INIT_PARAMETERS_INCORRECT; }
    if(InpMagic==0 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpRewardRisk<1 || InpATRBuffer<0 || InpMaxCandleATR<=0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpNewsWindowMinutes<1 || InpServerUTCOffsetHours< -14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd)
@@ -128,13 +132,13 @@ void OnTick()
    {
       lastBar=bar;
       ScalperSignal candidate;
-      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR))
+      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR,InpSweepLookback,InpUseCandleFilter,InpUseTrendFilter))
       {
          if(!InpUsePivotFilter) candidate.barrier=0;
          setup=candidate; pending=true; g_setups++; g_nextEntryCheck=0;
       }
    }
-   g_status=pending?"Setup armed: waiting for breakout":"Waiting for M5 pullback";
+   g_status=pending?"Reversal ready: waiting for valid entry":"Waiting for lower-low / higher-high reclaim";
    if(pending)
    {
       MqlTick q;
@@ -146,7 +150,7 @@ void OnTick()
          {
             // Only local spread rejection may retry. Never retry a submitted order.
             pending=false;
-            if(!signals.TrendValid(setup.direction)) { g_status="Setup expired: trend changed"; Display(); return; }
+            if(InpUseTrendFilter && !signals.TrendValid(setup.direction)) { g_status="Setup expired: trend changed"; Display(); return; }
             double remaining=MathMin(InpDailyMaxLoss+guard.pnl,InpDailyDrawdown-guard.drawdown);
             g_attempts++;
             bool ok=execution.Enter(setup,InpRewardRisk,InpRiskMoney,InpRiskPercent,remaining,InpCommissionPerLot,InpMaxSpreadPips,InpMaxSpreadStopFraction,InpDeviationPoints);

@@ -1,0 +1,16 @@
+; SessionGuard M5 v1.10 lower-low / higher-high reclaim baseline.
+; Strategy Tester: no historical news replay. Verify historical broker UTC offset.
+InpSweepLookback=6
+InpUseTrendFilter=false
+InpUseCandleFilter=false
+InpUsePivotFilter=false
+InpNewsFilter=false
+InpAutoServerUTC=false
+InpServerUTCOffsetHours=2.0
+InpRiskMoney=20.0
+InpRiskPercent=0.25
+InpDailyMaxLoss=100.0
+InpDailyTarget=150.0
+InpDailyDrawdown=75.0
+InpMaxEntries=6
+InpRewardRisk=1.5

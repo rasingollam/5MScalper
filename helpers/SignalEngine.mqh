@@ -38,20 +38,29 @@ public:
       if(f==EMPTY_VALUE || fp==EMPTY_VALUE || s==EMPTY_VALUE || sp==EMPTY_VALUE) return false;
       return dir*(f-s)>0 && dir*(f-fp)>0 && dir*(s-sp)>0;
    }
-   bool Build(ScalperSignal &s,double buffer,double maxCandle)
+   bool Build(ScalperSignal &s,double buffer,double maxCandle,int lookback,bool candleFilter,bool trendFilter)
    {
       MqlRates r[]; ArraySetAsSeries(r,true);
-      if(CopyRates(_Symbol,PERIOD_M5,0,24,r)!=24 || BarsCalculated(slow)<55) return false;
-      double f=Value(fast,1),fp=Value(fast,2),sl=Value(slow,1),sp=Value(slow,2);
-      double ema=Value(pullback,1),a=Value(atr,1);
-      if(f==EMPTY_VALUE || fp==EMPTY_VALUE || sl==EMPTY_VALUE || sp==EMPTY_VALUE || ema==EMPTY_VALUE || a==EMPTY_VALUE || a<=0) return false;
-      if(r[1].high-r[1].low>maxCandle*a) return false;
-      int dir=0;
-      if(f>sl && f>fp && sl>sp && r[1].low<=ema && r[1].close>ema && r[1].close>r[1].open) dir=1;
-      if(f<sl && f<fp && sl<sp && r[1].high>=ema && r[1].close<ema && r[1].close<r[1].open) dir=-1;
-      if(dir==0) return false;
-      s.direction=dir; s.expires=r[0].time+2*PeriodSeconds(PERIOD_M5);
-      s.trigger=dir>0?r[1].high:r[1].low;
+      int count=MathMax(24,lookback+2);
+      if(CopyRates(_Symbol,PERIOD_M5,0,count,r)!=count) return false;
+      double a=Value(atr,1);
+      if(a==EMPTY_VALUE || a<=0) return false;
+      if(candleFilter && r[1].high-r[1].low>maxCandle*a) return false;
+      // Exclude the signal candle from the reference range; no future bars.
+      double priorLow=r[2].low,priorHigh=r[2].high;
+      for(int i=3;i<=lookback+1;i++)
+      {
+         priorLow=MathMin(priorLow,r[i].low);
+         priorHigh=MathMax(priorHigh,r[i].high);
+      }
+      bool buy=r[1].low<priorLow && r[1].close>priorLow;
+      bool sell=r[1].high>priorHigh && r[1].close<priorHigh;
+      if(buy==sell) return false; // Neither side, or an ambiguous double sweep.
+      int dir=buy?1:-1;
+      if(trendFilter && !TrendValid(dir)) return false;
+      s.direction=dir; s.expires=r[0].time+PeriodSeconds(PERIOD_M5);
+      // Enter after the reclaim close, without waiting for a candle-high breakout.
+      s.trigger=buy?priorLow:priorHigh;
       double swing=dir>0?r[1].low:r[1].high;
       for(int i=2;i<=3;i++) swing=dir>0?MathMin(swing,r[i].low):MathMax(swing,r[i].high);
       s.stop=swing-dir*buffer*a; s.barrier=0;
