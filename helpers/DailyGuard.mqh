@@ -73,7 +73,7 @@ public:
       for(int i=0;i<HistoryDealsTotal();i++)
       {
          ulong deal=HistoryDealGetTicket(i);
-         if((ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=magic || HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol) continue;
+         if((ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=magic) continue;
          long type=HistoryDealGetInteger(deal,DEAL_TYPE);
          if(type!=DEAL_TYPE_BUY && type!=DEAL_TYPE_SELL) continue;
          datetime time=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);
