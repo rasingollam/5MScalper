@@ -1,0 +1,5 @@
+; SessionGuard M5: price-only tester overrides. Set the broker's historical UTC offset.
+; News filtering is intentionally excluded from these test results.
+InpNewsFilter=false
+InpAutoServerUTC=false
+InpServerUTCOffsetHours=2.0
