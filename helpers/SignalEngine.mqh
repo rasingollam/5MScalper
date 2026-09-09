@@ -9,21 +9,22 @@ struct ScalperSignal
 class CSignalEngine
 {
 private:
-   int fast,slow,pullback,atr;
+   int fast,slow,pullback,atr,adx;
    double Value(int handle,int shift)
    {
       double b[1]; if(CopyBuffer(handle,0,shift,1,b)!=1) return EMPTY_VALUE;
       return b[0];
    }
 public:
-   CSignalEngine():fast(INVALID_HANDLE),slow(INVALID_HANDLE),pullback(INVALID_HANDLE),atr(INVALID_HANDLE) {}
+   CSignalEngine():fast(INVALID_HANDLE),slow(INVALID_HANDLE),pullback(INVALID_HANDLE),atr(INVALID_HANDLE),adx(INVALID_HANDLE) {}
    bool Init()
    {
       fast=iMA(_Symbol,PERIOD_M15,20,0,MODE_EMA,PRICE_CLOSE);
       slow=iMA(_Symbol,PERIOD_M15,50,0,MODE_EMA,PRICE_CLOSE);
       pullback=iMA(_Symbol,PERIOD_M5,20,0,MODE_EMA,PRICE_CLOSE);
       atr=iATR(_Symbol,PERIOD_M5,14);
-      return fast!=INVALID_HANDLE && slow!=INVALID_HANDLE && pullback!=INVALID_HANDLE && atr!=INVALID_HANDLE;
+      adx=iADX(_Symbol,PERIOD_M15,14);
+      return fast!=INVALID_HANDLE && slow!=INVALID_HANDLE && pullback!=INVALID_HANDLE && atr!=INVALID_HANDLE && adx!=INVALID_HANDLE;
    }
    void Release()
    {
@@ -31,6 +32,7 @@ public:
       if(slow!=INVALID_HANDLE) IndicatorRelease(slow);
       if(pullback!=INVALID_HANDLE) IndicatorRelease(pullback);
       if(atr!=INVALID_HANDLE) IndicatorRelease(atr);
+      if(adx!=INVALID_HANDLE) IndicatorRelease(adx);
    }
    bool TrendValid(int dir)
    {
@@ -38,7 +40,13 @@ public:
       if(f==EMPTY_VALUE || fp==EMPTY_VALUE || s==EMPTY_VALUE || sp==EMPTY_VALUE) return false;
       return dir*(f-s)>0 && dir*(f-fp)>0 && dir*(s-sp)>0;
    }
-   bool Build(ScalperSignal &s,double buffer,double maxCandle,int lookback,bool candleFilter,bool trendFilter)
+   bool OpposingTrend(int dir)
+   {
+      double strength=Value(adx,1),f=Value(fast,1),s=Value(slow,1);
+      if(strength==EMPTY_VALUE || f==EMPTY_VALUE || s==EMPTY_VALUE) return true;
+      return strength>25 && dir*(f-s)<0;
+   }
+   bool Build(ScalperSignal &s,double buffer,double maxCandle,int lookback,bool candleFilter,bool trendFilter,bool strongClose,bool trendVeto)
    {
       MqlRates r[]; ArraySetAsSeries(r,true);
       int count=MathMax(24,lookback+2);
@@ -57,6 +65,9 @@ public:
       bool sell=r[1].high>priorHigh && r[1].close<priorHigh;
       if(buy==sell) return false; // Neither side, or an ambiguous double sweep.
       int dir=buy?1:-1;
+      double range=r[1].high-r[1].low;
+      if(strongClose && (range<=0 || (buy?r[1].close<r[1].high-range/3.0:r[1].close>r[1].low+range/3.0))) return false;
+      if(trendVeto && OpposingTrend(dir)) return false;
       if(trendFilter && !TrendValid(dir)) return false;
       s.direction=dir; s.expires=r[0].time+PeriodSeconds(PERIOD_M5);
       // Enter after the reclaim close, without waiting for a candle-high breakout.

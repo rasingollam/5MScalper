@@ -4,4 +4,4 @@ InpUsePivotFilter=false
 InpNewsFilter=false
 InpAutoServerUTC=false
 ; Verify the historical broker offset before using this value.
-InpServerUTCOffsetHours=2.0
+InpServerUTCOffsetHours=0.0

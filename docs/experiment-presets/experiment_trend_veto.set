@@ -1,0 +1,12 @@
+InpServerUTCOffsetHours=0
+InpAutoServerUTC=false
+InpNewsFilter=false
+InpSweepLookback=6
+InpUseTrendFilter=false
+InpUseCandleFilter=false
+InpUsePivotFilter=false
+InpStrongRejectionClose=false
+InpEnableLondon=true
+InpEnableNewYork=true
+InpTrailing=true
+InpOpposingTrendVeto=true

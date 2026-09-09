@@ -130,7 +130,10 @@ MT5's economic calendar is unavailable in Strategy Tester. Tester runs automatic
 | `InpNewYorkStart`, `InpNewYorkEnd` | 8, 10 | New York local hours; same-day window |
 | `InpCloseAtSessionEnd` | true | Close owned positions outside sessions |
 | `InpAutoServerUTC` | true | Use computer-derived UTC live |
-| `InpServerUTCOffsetHours` | 2 | Manual broker offset; server time = UTC + offset |
+| `InpServerUTCOffsetHours` | 0 | Manual broker offset; server time = UTC + offset |
+| `InpEnableLondon`, `InpEnableNewYork` | true, true | Enable each session independently |
+| `InpStrongRejectionClose` | false | Require buy close in upper third / sell close in lower third |
+| `InpOpposingTrendVeto` | false | Block opposing M15 EMA20/EMA50 direction when ADX(14) exceeds 25 |
 | `InpSweepLookback` | 6 | Prior closed M5 candles defining the reference range; allowed 2–100 |
 | `InpUseTrendFilter` | false | Optional M15 EMA20/EMA50 direction and slope filter |
 | `InpUseCandleFilter` | false | Optional maximum signal candle range/ATR filter |

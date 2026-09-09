@@ -1,5 +1,5 @@
 #property copyright "SessionGuard M5"
-#property version "1.10"
+#property version "1.11"
 #property strict
 #property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards."
 
@@ -13,15 +13,19 @@ input double InpDailyDrawdown=75.0;
 input int InpMaxEntries=6;
 input int InpLossCooldownMinutes=15;
 input group "Sessions (local city hours, end exclusive)"
+input bool InpEnableLondon=true;
+input bool InpEnableNewYork=true;
 input int InpLondonStart=8;
 input int InpLondonEnd=10;
 input int InpNewYorkStart=8;
 input int InpNewYorkEnd=10;
 input bool InpCloseAtSessionEnd=true;
 input bool InpAutoServerUTC=true;
-input double InpServerUTCOffsetHours=2.0;
+input double InpServerUTCOffsetHours=0.0;
 input group "Signal and execution"
 input int InpSweepLookback=6;
+input bool InpStrongRejectionClose=false;
+input bool InpOpposingTrendVeto=false;
 input bool InpUseTrendFilter=false;
 input bool InpUseCandleFilter=false;
 input double InpRewardRisk=1.5;
@@ -61,7 +65,7 @@ datetime UTCNow(datetime server)
 }
 bool InSession(datetime now)
 {
-   return SessionOpen(UTCNow(now),InpLondonStart,InpLondonEnd,InpNewYorkStart,InpNewYorkEnd);
+   return SessionOpen(UTCNow(now),InpEnableLondon?InpLondonStart:0,InpEnableLondon?InpLondonEnd:0,InpEnableNewYork?InpNewYorkStart:0,InpEnableNewYork?InpNewYorkEnd:0);
 }
 void Display()
 {
@@ -132,7 +136,7 @@ void OnTick()
    {
       lastBar=bar;
       ScalperSignal candidate;
-      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR,InpSweepLookback,InpUseCandleFilter,InpUseTrendFilter))
+      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR,InpSweepLookback,InpUseCandleFilter,InpUseTrendFilter,InpStrongRejectionClose,InpOpposingTrendVeto))
       {
          if(!InpUsePivotFilter) candidate.barrier=0;
          setup=candidate; pending=true; g_setups++; g_nextEntryCheck=0;
@@ -151,6 +155,7 @@ void OnTick()
             // Only local spread rejection may retry. Never retry a submitted order.
             pending=false;
             if(InpUseTrendFilter && !signals.TrendValid(setup.direction)) { g_status="Setup expired: trend changed"; Display(); return; }
+            if(InpOpposingTrendVeto && signals.OpposingTrend(setup.direction)) { g_status="Setup expired: strong opposing trend"; Display(); return; }
             double remaining=MathMin(InpDailyMaxLoss+guard.pnl,InpDailyDrawdown-guard.drawdown);
             g_attempts++;
             bool ok=execution.Enter(setup,InpRewardRisk,InpRiskMoney,InpRiskPercent,remaining,InpCommissionPerLot,InpMaxSpreadPips,InpMaxSpreadStopFraction,InpDeviationPoints);

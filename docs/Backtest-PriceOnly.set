@@ -2,4 +2,4 @@
 ; News filtering is intentionally excluded from these test results.
 InpNewsFilter=false
 InpAutoServerUTC=false
-InpServerUTCOffsetHours=2.0
+InpServerUTCOffsetHours=0.0
