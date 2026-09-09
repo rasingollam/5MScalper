@@ -26,7 +26,8 @@ private:
 public:
    string lastReason;
    bool retryable;
-   CScalperExecution():magic(0),lastCloseAttempt(0),lastModify(0) {}
+   ulong lastOrderTicket;
+   CScalperExecution():magic(0),lastCloseAttempt(0),lastModify(0),lastOrderTicket(0) {}
    void Init(ulong id,int deviation)
    {
       magic=id; trade.SetExpertMagicNumber(id); trade.SetDeviationInPoints(deviation);
@@ -47,6 +48,17 @@ public:
       for(int i=OrdersTotal()-1;i>=0;i--) if(OrderGetTicket(i)>0 && OrderGetString(ORDER_SYMBOL)==_Symbol) return true;
       return false;
    }
+   bool HasOrder()
+   {
+      for(int i=OrdersTotal()-1;i>=0;i--) if(OrderGetTicket(i)>0 && OrderGetString(ORDER_SYMBOL)==_Symbol) return true;
+      return false;
+   }
+   void CancelOrder(ulong ticket)
+   {
+      if(ticket==0) return;
+      if(OrderSelect(ticket) && OrderGetString(ORDER_SYMBOL)==_Symbol && OrderGetInteger(ORDER_MAGIC)==(long)magic)
+      { trade.OrderDelete(ticket); Accepted(); }
+   }
    void CloseAll(datetime now)
    {
       if(now-lastCloseAttempt<2) return;
@@ -55,6 +67,14 @@ public:
       {
          ulong ticket=PositionGetTicket(i);
          if(ticket>0 && OwnSelected()) { trade.PositionClose(ticket); Accepted(); }
+      }
+   }
+   void CancelPending()
+   {
+      for(int i=OrdersTotal()-1;i>=0;i--)
+      {
+         ulong ticket=OrderGetTicket(i);
+         if(ticket>0 && OrderGetString(ORDER_SYMBOL)==_Symbol && (ulong)OrderGetInteger(ORDER_MAGIC)==magic) { trade.OrderDelete(ticket); Accepted(); }
       }
    }
    bool Enter(ScalperSignal &s,double targetR,double moneyRisk,double percentRisk,double remaining,double commission,double maxSpread,double spreadFraction,int deviation)
@@ -68,11 +88,11 @@ public:
       double distance=s.direction*(entry-sl);
       double minStop=(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL)+1)*_Point;
       if(distance<=0) return Reject("invalid stop distance");
+      if(distance<minStop) return Reject("SL inside broker stop distance");
       if(q.ask-q.bid>maxSpread*pip+_Point*0.01 || q.ask-q.bid>distance*spreadFraction+_Point*0.01)
       { retryable=true; return Reject(StringFormat("spread %.2f pips, limit %.2f; spread/stop %.1f%%, limit %.1f%%",(q.ask-q.bid)/pip,maxSpread,100*(q.ask-q.bid)/distance,100*spreadFraction)); }
-      if((s.direction>0?q.bid-sl:sl-q.ask)<minStop) return Reject("SL inside broker stop distance");
       double tp=Price(entry+s.direction*targetR*distance,s.direction>0);
-      if((s.direction>0?tp-q.bid:q.ask-tp)<minStop) return Reject("TP inside broker stop distance");
+      if(s.direction*(tp-entry)<minStop) return Reject("TP inside broker stop distance");
       if(s.barrier>0 && s.direction*(tp-s.barrier)>=0) return Reject("nearby pivot leaves insufficient target room");
       double budget=MathMin(MathMin(moneyRisk,AccountInfoDouble(ACCOUNT_EQUITY)*percentRisk/100.0),remaining);
       double loss=0;
@@ -88,6 +108,42 @@ public:
       if(!OrderCalcMargin(type,_Symbol,lots,entry,margin) || margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE)) return Reject("margin calculation or insufficient margin");
       bool sent=s.direction>0?trade.Buy(lots,_Symbol,0,sl,tp,"SessionGuard M5"):trade.Sell(lots,_Symbol,0,sl,tp,"SessionGuard M5");
       bool accepted=Accepted();
+      return sent && accepted;
+   }
+   bool EnterLimit(ScalperSignal &s,double targetR,double moneyRisk,double percentRisk,double remaining,double commission,double maxSpread,double spreadFraction,int deviation,datetime expires)
+   {
+      lastReason=""; retryable=false; lastOrderTicket=0;
+      if(HasOrder() || OwnPosition()) return Reject("symbol busy");
+      MqlTick q; if(!SymbolInfoTick(_Symbol,q) || q.ask<=q.bid || q.bid<=0) return false;
+      double pip=(_Digits==3 || _Digits==5)?10*_Point:_Point;
+      double entry=s.trigger;
+      if(s.direction>0 && entry>=q.ask) return Reject("buy limit above market");
+      if(s.direction<0 && entry<=q.bid) return Reject("sell limit below market");
+      double sl=Price(s.stop,s.direction<0);
+      double distance=s.direction*(entry-sl);
+      double minStop=(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL)+1)*_Point;
+      if(distance<=0) return Reject("invalid stop distance");
+      if(q.ask-q.bid>maxSpread*pip+_Point*0.01 || q.ask-q.bid>distance*spreadFraction+_Point*0.01)
+      { retryable=true; return Reject(StringFormat("spread %.2f pips, limit %.2f; spread/stop %.1f%%, limit %.1f%%",(q.ask-q.bid)/pip,maxSpread,100*(q.ask-q.bid)/distance,100*spreadFraction)); }
+      double tp=Price(entry+s.direction*targetR*distance,s.direction>0);
+      if((s.direction>0?tp-q.bid:q.ask-tp)<minStop) return Reject("TP inside broker stop distance");
+      if(s.barrier>0 && s.direction*(tp-s.barrier)>=0) return Reject("nearby pivot leaves insufficient target room");
+      double budget=MathMin(MathMin(moneyRisk,AccountInfoDouble(ACCOUNT_EQUITY)*percentRisk/100.0),remaining);
+      double loss=0;
+      ENUM_ORDER_TYPE type=s.direction>0?ORDER_TYPE_BUY:ORDER_TYPE_SELL;
+      if(!OrderCalcProfit(type,_Symbol,1.0,entry+s.direction*deviation*_Point,sl,loss)) return false;
+      double perLot=MathAbs(loss)+commission;
+      if(perLot<=0 || budget<=0) return Reject("no risk budget");
+      double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
+      if(step<=0) return false;
+      double lots=NormalizeDouble(MathFloor(MathMin(budget/perLot,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX))/step)*step,8);
+      if(lots<SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN)) return Reject("risk budget below minimum lot");
+      double margin;
+      if(!OrderCalcMargin(type,_Symbol,lots,entry,margin) || margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE)) return Reject("margin calculation or insufficient margin");
+      bool sent=s.direction>0?trade.BuyLimit(lots,entry,_Symbol,sl,tp,ORDER_TIME_SPECIFIED,expires,"SessionGuard M5")
+                              :trade.SellLimit(lots,entry,_Symbol,sl,tp,ORDER_TIME_SPECIFIED,expires,"SessionGuard M5");
+      bool accepted=Accepted();
+      if(sent && accepted) lastOrderTicket=trade.ResultOrder();
       return sent && accepted;
    }
    void Trail(datetime now,double rr,double commission)
