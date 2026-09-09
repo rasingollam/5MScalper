@@ -1,5 +1,5 @@
 #property copyright "SessionGuard M5"
-#property version "1.01"
+#property version "1.02"
 #property strict
 #property description "EURUSD M5 pullback scalper with M15 trend confirmation and daily equity guards."
 
@@ -26,6 +26,7 @@ input double InpATRBuffer=0.2;
 input double InpMaxCandleATR=1.5;
 input double InpMaxSpreadPips=1.0;
 input double InpMaxSpreadStopFraction=0.15;
+input bool InpUsePivotFilter=true;
 input double InpCommissionPerLot=7.0;
 input int InpDeviationPoints=10;
 input bool InpTrailing=true;
@@ -47,6 +48,8 @@ ScalperSignal setup;
 datetime lastBar=0;
 bool pending=false;
 string g_status="Starting";
+int g_setups=0,g_attempts=0,g_opened=0;
+datetime g_nextEntryCheck=0;
 
 datetime UTCNow(datetime server)
 {
@@ -102,6 +105,7 @@ int OnInit()
 }
 void OnDeinit(const int reason)
 {
+   PrintFormat("SessionGuard M5 summary: setups=%d, entry evaluations=%d, opened=%d",g_setups,g_attempts,g_opened);
    EventKillTimer(); signals.Release(); Comment("");
 }
 void OnTimer()
@@ -124,7 +128,11 @@ void OnTick()
    {
       lastBar=bar;
       ScalperSignal candidate;
-      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR)) { setup=candidate; pending=true; }
+      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR))
+      {
+         if(!InpUsePivotFilter) candidate.barrier=0;
+         setup=candidate; pending=true; g_setups++; g_nextEntryCheck=0;
+      }
    }
    g_status=pending?"Setup armed: waiting for breakout":"Waiting for M5 pullback";
    if(pending)
@@ -134,14 +142,17 @@ void OnTick()
       {
          // Chart bars use Bid; use Bid for both breakout directions.
          if((setup.direction>0 && q.bid<=setup.stop) || (setup.direction<0 && q.ask>=setup.stop)) pending=false;
-         else if(setup.direction*(q.bid-setup.trigger)>0)
+         else if(now>=g_nextEntryCheck && setup.direction*(q.bid-setup.trigger)>0)
          {
-            // One execution attempt per setup; no duplicate orders on ambiguous replies.
+            // Only local spread rejection may retry. Never retry a submitted order.
             pending=false;
             if(!signals.TrendValid(setup.direction)) { g_status="Setup expired: trend changed"; Display(); return; }
             double remaining=MathMin(InpDailyMaxLoss+guard.pnl,InpDailyDrawdown-guard.drawdown);
+            g_attempts++;
             bool ok=execution.Enter(setup,InpRewardRisk,InpRiskMoney,InpRiskPercent,remaining,InpCommissionPerLot,InpMaxSpreadPips,InpMaxSpreadStopFraction,InpDeviationPoints);
-            g_status=ok?"Trade opened":"Setup skipped: execution/risk filters";
+            if(ok) g_opened++;
+            if(!ok && execution.retryable) { pending=true; g_nextEntryCheck=now+30; }
+            g_status=ok?"Trade opened":"Setup skipped: "+execution.lastReason;
          }
       }
    }

@@ -1,6 +1,6 @@
-# SessionGuard M5 â€” Strategy and operating guide
+# SessionGuard M5 Ã¢â‚¬â€ Strategy and operating guide
 
-Version 1.01 Â· 9 September 2026
+Version 1.01 Ã‚Â· 9 September 2026
 
 SessionGuard M5 is a MetaTrader 5 Expert Advisor for EUR/USD. It trades M5 pullbacks in an M15 trend, only during defined London and New York sessions. Its default planned reward/risk is 1.5, with a 100-unit daily loss shutdown, a 150-unit daily target, and a 75-unit trailing daily equity drawdown shutdown. All money settings use the account's deposit currency, not necessarily USD.
 
@@ -22,8 +22,8 @@ This is an implemented starting strategy, not an optimized or demonstrated profi
 
 ## Installation
 
-1. In the terminal installed at `D:\Trading\terminal64.exe`, choose **File â†’ Open Data Folder**. Confirm it is the terminal data folder containing this `MQL5\Experts\5MScalper` directory. The installation folder and data folder are different locations.
-2. Refresh **Navigator â†’ Expert Advisors**. `5MScalper\SessionGuardM5` should appear. If the terminal uses a different data folder, copy the EA and `helpers` into that folder's `MQL5\Experts\5MScalper`, then compile there.
+1. In the terminal installed at `D:\Trading\terminal64.exe`, choose **File Ã¢â€ â€™ Open Data Folder**. Confirm it is the terminal data folder containing this `MQL5\Experts\5MScalper` directory. The installation folder and data folder are different locations.
+2. Refresh **Navigator Ã¢â€ â€™ Expert Advisors**. `5MScalper\SessionGuardM5` should appear. If the terminal uses a different data folder, copy the EA and `helpers` into that folder's `MQL5\Experts\5MScalper`, then compile there.
 3. Use a demo account first. Attach one instance to your broker's EUR/USD chart, preferably M5. Broker prefixes/suffixes work when the symbol metadata specifies EUR base and USD profit currency. Other currency pairs are rejected.
 4. Configure the commission estimate and risk inputs for the account. Check the broker's minimum lot size; the EA skips a trade if minimum volume would exceed its risk budget.
 5. Keep the computer clock accurate. Allow algorithmic trading when ready to demo-test. No DLL or WebRequest permission is required.
@@ -44,13 +44,13 @@ Building this project does not attach the EA or enable live trading.
 - With automatic UTC enabled in live trading, sessions use `TimeGMT()`. Broker midnight, deal history and calendar queries use broker/server time.
 - A signal candle must have opened within a session. Consequently the earliest ordinary signal follows the first completed M5 candle of that session.
 
-In Sri Lanka, the London window is 12:30â€“14:30 during UK summer and 13:30â€“15:30 during UK winter. The New York window is 17:30â€“19:30 during US summer and 18:30â€“20:30 during US winter. UK and US transition dates differ.
+In Sri Lanka, the London window is 12:30Ã¢â‚¬â€œ14:30 during UK summer and 13:30Ã¢â‚¬â€œ15:30 during UK winter. The New York window is 17:30Ã¢â‚¬â€œ19:30 during US summer and 18:30Ã¢â‚¬â€œ20:30 during US winter. UK and US transition dates differ.
 
 ### Buy setup
 
 1. On the last closed M15 candle, EMA20 is above EMA50. Both are higher than their preceding closed-bar values.
 2. The last closed M5 candle touches or crosses EMA20 with its low, then closes above EMA20 and above its own open.
-3. Its high-to-low range is no greater than 1.5 Ã— M5 ATR(14).
+3. Its high-to-low range is no greater than 1.5 Ãƒâ€” M5 ATR(14).
 4. Arm a virtual breakout at that candle's high. Enter at market when Bid breaks above the high; buys fill at Ask. The setup lasts two M5 bars, and a newer valid setup can replace it.
 5. Recheck the M15 trend at the breakout. Invalidate the setup if price has reached its stop, it expires, trading is blocked, or a position/order occupies the symbol.
 
@@ -61,8 +61,8 @@ Sell rules reverse the comparisons. Signal indicators use closed bars only. A re
 - Initial stop: lowest low of the last three closed M5 bars for buys, or highest high for sells, plus a 0.2 ATR outward buffer.
 - Initial TP: 1.5 times the entry-to-stop distance by default. `InpRewardRisk` accepts 1.0 or higher.
 - Prices are rounded to the broker's tick size. Initial stops and targets are sent with the market order; there is no retry that deliberately opens an unprotected position.
-- Search bars 3â€“21 for confirmed one-neighbor local pivots. If the nearest pivot in the trade direction is at or before the proposed target, skip the trade. This is a simple support/resistance approximation.
-- SL distance, spread, margin, minimum volume and broker restrictions can reject an otherwise valid setup. Each breakout gets only one execution attempt, to avoid blind resubmission after ambiguous replies.
+- Search bars 3Ã¢â‚¬â€œ21 for confirmed one-neighbor local pivots. If the nearest pivot in the trade direction is at or before the proposed target, skip the trade. This is a simple support/resistance approximation.
+- SL distance, spread, margin, minimum volume and broker restrictions can reject an otherwise valid setup. A local spread rejection may be re-evaluated after 30 seconds while the original setup remains valid. A submitted order is never blindly retried after an ambiguous reply.
 
 RR is a planned gross price ratio. Commission, fills, trailing, session exits and daily shutdowns change realized RR, which may be below 1:1. The EA does not promise every trade will realize at least 1R.
 
@@ -87,9 +87,9 @@ Daily guards measure **total account equity**, including floating P/L and charge
 
 | Guard | Default trigger |
 | --- | --- |
-| Daily loss | Equity minus saved baseline â‰¤ âˆ’100 |
-| Daily target | Equity minus saved baseline â‰¥ +150 |
-| Daily peak drawdown | Saved intraday equity peak minus equity â‰¥ 75 |
+| Daily loss | Equity minus saved baseline Ã¢â€°Â¤ Ã¢Ë†â€™100 |
+| Daily target | Equity minus saved baseline Ã¢â€°Â¥ +150 |
+| Daily peak drawdown | Saved intraday equity peak minus equity Ã¢â€°Â¥ 75 |
 
 A lock clears virtual setups, blocks new entries and repeatedly attempts to close **only positions matching this symbol and magic number**, at least two seconds apart. It lasts until the next observed broker day. Other account positions are not closed, although their equity changes can trigger the guard. Thus the guard cannot cap the entire account's losses when other trading remains active.
 
@@ -131,6 +131,7 @@ MT5's economic calendar is unavailable in Strategy Tester. Tester runs automatic
 | `InpMaxCandleATR` | 1.5 | Maximum signal candle range in ATR units |
 | `InpMaxSpreadPips` | 1 | Maximum entry spread in pips |
 | `InpMaxSpreadStopFraction` | 0.15 | Maximum spread divided by stop distance |
+| `InpUsePivotFilter` | true | Require target room before an unbroken confirmed pivot |
 | `InpCommissionPerLot` | 7 | Estimated round-trip cost per standard lot, account currency |
 | `InpDeviationPoints` | 10 | Requested execution deviation; also used in risk estimate |
 | `InpTrailing` | true | Enable cost-adjusted trailing |
@@ -164,3 +165,23 @@ The implementation checks trade-server return codes and logs rejected operations
 The original tester log confirmed that `OnInit` rejected the default news setting. A second check rejected default automatic UTC. Both tester-only startup rejections were removed. Tester mode bypasses unavailable calendar queries and uses `InpServerUTCOffsetHours`, with explicit journal and chart notices. Live calendar failures still block new entries.
 
 An isolated MT5 Strategy Tester run with default EA inputs completed on EURUSD M5, 2025-06-02 through 2025-06-04 (end exclusive), using generated every-tick mode: **125,652 ticks and 576 bars**, with no runtime error. No trades occurred in this short run. This verifies startup and processing through the test period, not profitability or order execution. Evidence: `tester-startup-validation.log`. Compilation: **0 errors, 0 warnings**.
+
+## Version 1.02: sparse-entry diagnosis and trading test
+
+The latest user visual-test agent log contained a buy on January 26, 2026 at 16:42:17 and its session-end close at 17:00. The test was stopped by closing the visual tester window. The issue was sparse entries rather than a complete inability to send orders.
+
+A January 2026 diagnostic run found 79 setups and 61 breakout evaluations: 52 were rejected by the pivot filter, seven by spread/stop ratio, and two opened trades. The old pivot implementation counted small single-neighbor pivots, including levels already crossed by subsequent price action.
+
+Version 1.02 confirms pivots using two candles on each side and removes levels already broken by later closed bars. A locally rejected spread check can now wait 30 seconds and retry within the original setup lifetime. Orders actually submitted to the broker are not retried. Entry rejection reasons and end-of-test setup/evaluation/opened counts are now printed in the journal.
+
+`InpUsePivotFilter` defaults to true. To test entry activity and trade management with that optional filter disabled, load **Activity-Test.set** from this docs folder in Strategy Tester → Inputs → Load. It retains the M15 trend, M5 pullback, sessions, spread checks, sizing, SL/TP, trailing, entry cap and daily limits. It is an experimental comparison preset, not an optimized live configuration. Verify its manual broker UTC offset for your data.
+
+Validation used EURUSD M5, January 1–February 1, 2026 (end exclusive), generated every-tick mode, 10,000 USD initial balance, 1:100 leverage and a configured UTC+2 broker offset:
+
+| Configuration | Opened trades | Final balance |
+| --- | ---: | ---: |
+| Original entry logic with diagnostics | 2 | 9,983.92 USD |
+| Corrected pivot filter enabled | 3 | 9,968.84 USD |
+| Activity-Test preset, pivot filter disabled | 37 | 9,956.93 USD |
+
+The activity test processed 1,172,962 ticks and 6,043 bars and completed without runtime errors. These are generated-tick functional comparisons without historical news filtering. Broker tester commission settings determine charged costs; the EA commission input is a sizing estimate, not a command to charge commission. These results do not establish profitability. Evidence: `entry-diagnostics-before.log`, `entry-diagnostics-after.log`, and `activity-test-validation.log`.

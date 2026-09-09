@@ -7,6 +7,10 @@ private:
    CTrade trade;
    ulong magic;
    datetime lastCloseAttempt,lastModify;
+   bool Reject(string reason)
+   {
+      lastReason=reason; Print("SessionGuard M5 entry skipped: ",reason); return false;
+   }
    bool Accepted()
    {
       uint code=trade.ResultRetcode();
@@ -20,6 +24,8 @@ private:
       return NormalizeDouble((up?MathCeil(price/tick):MathFloor(price/tick))*tick,_Digits);
    }
 public:
+   string lastReason;
+   bool retryable;
    CScalperExecution():magic(0),lastCloseAttempt(0),lastModify(0) {}
    void Init(ulong id,int deviation)
    {
@@ -53,30 +59,33 @@ public:
    }
    bool Enter(ScalperSignal &s,double rr,double moneyRisk,double percentRisk,double remaining,double commission,double maxSpread,double spreadFraction,int deviation)
    {
-      if(SymbolBusy()) return false;
+      lastReason=""; retryable=false;
+      if(SymbolBusy()) return Reject("symbol busy");
       MqlTick q; if(!SymbolInfoTick(_Symbol,q) || q.ask<=q.bid || q.bid<=0) return false;
       double pip=(_Digits==3 || _Digits==5)?10*_Point:_Point;
       double entry=s.direction>0?q.ask:q.bid;
       double sl=Price(s.stop,s.direction<0);
       double distance=s.direction*(entry-sl);
       double minStop=(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL)+1)*_Point;
-      if(distance<=0 || q.ask-q.bid>maxSpread*pip || q.ask-q.bid>distance*spreadFraction) return false;
-      if((s.direction>0?q.bid-sl:sl-q.ask)<minStop) return false;
+      if(distance<=0) return Reject("invalid stop distance");
+      if(q.ask-q.bid>maxSpread*pip+_Point*0.01 || q.ask-q.bid>distance*spreadFraction+_Point*0.01)
+      { retryable=true; return Reject(StringFormat("spread %.2f pips, limit %.2f; spread/stop %.1f%%, limit %.1f%%",(q.ask-q.bid)/pip,maxSpread,100*(q.ask-q.bid)/distance,100*spreadFraction)); }
+      if((s.direction>0?q.bid-sl:sl-q.ask)<minStop) return Reject("SL inside broker stop distance");
       double tp=Price(entry+s.direction*rr*distance,s.direction>0);
-      if((s.direction>0?tp-q.bid:q.ask-tp)<minStop) return false;
-      if(s.barrier>0 && s.direction*(tp-s.barrier)>=0) return false;
+      if((s.direction>0?tp-q.bid:q.ask-tp)<minStop) return Reject("TP inside broker stop distance");
+      if(s.barrier>0 && s.direction*(tp-s.barrier)>=0) return Reject("nearby pivot leaves insufficient target room");
       double budget=MathMin(MathMin(moneyRisk,AccountInfoDouble(ACCOUNT_EQUITY)*percentRisk/100.0),remaining);
       double loss=0;
       ENUM_ORDER_TYPE type=s.direction>0?ORDER_TYPE_BUY:ORDER_TYPE_SELL;
       if(!OrderCalcProfit(type,_Symbol,1.0,entry+s.direction*deviation*_Point,sl,loss)) return false;
       double perLot=MathAbs(loss)+commission;
-      if(perLot<=0 || budget<=0) return false;
+      if(perLot<=0 || budget<=0) return Reject("no risk budget");
       double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
       if(step<=0) return false;
       double lots=NormalizeDouble(MathFloor(MathMin(budget/perLot,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX))/step)*step,8);
-      if(lots<SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN)) return false;
+      if(lots<SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN)) return Reject("risk budget below minimum lot");
       double margin;
-      if(!OrderCalcMargin(type,_Symbol,lots,entry,margin) || margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE)) return false;
+      if(!OrderCalcMargin(type,_Symbol,lots,entry,margin) || margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE)) return Reject("margin calculation or insufficient margin");
       bool sent=s.direction>0?trade.Buy(lots,_Symbol,0,sl,tp,"SessionGuard M5"):trade.Sell(lots,_Symbol,0,sl,tp,"SessionGuard M5");
       bool accepted=Accepted();
       return sent && accepted;

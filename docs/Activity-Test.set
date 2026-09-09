@@ -1,0 +1,7 @@
+; For comparing entry activity in Strategy Tester; not an optimized live preset.
+; Disable only the optional pivot-room filter. Core trend, spread and risk rules remain.
+InpUsePivotFilter=false
+InpNewsFilter=false
+InpAutoServerUTC=false
+; Verify the historical broker offset before using this value.
+InpServerUTCOffsetHours=2.0

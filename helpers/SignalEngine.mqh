@@ -55,11 +55,22 @@ public:
       double swing=dir>0?r[1].low:r[1].high;
       for(int i=2;i<=3;i++) swing=dir>0?MathMin(swing,r[i].low):MathMax(swing,r[i].high);
       s.stop=swing-dir*buffer*a; s.barrier=0;
-      // Nearest confirmed local pivot from the preceding 20 closed bars.
+      // Confirm with two bars on either side. A level crossed by a later
+      // closed bar is already broken and must not block a continuation entry.
       for(int i=3;i<=21;i++)
       {
          double level=dir>0?r[i].high:r[i].low;
-         bool pivot=dir>0?(level>r[i-1].high && level>=r[i+1].high):(level<r[i-1].low && level<=r[i+1].low);
+         bool pivot=true;
+         for(int j=1;j<=2;j++)
+         {
+            if(dir>0 && (level<=r[i-j].high || level<r[i+j].high)) pivot=false;
+            if(dir<0 && (level>=r[i-j].low || level>r[i+j].low)) pivot=false;
+         }
+         for(int j=i-1;j>=1 && pivot;j--)
+         {
+            if(dir>0 && r[j].high>level) pivot=false;
+            if(dir<0 && r[j].low<level) pivot=false;
+         }
          if(pivot && dir*(level-s.trigger)>0 && (s.barrier==0 || dir*(level-s.barrier)<0)) s.barrier=level;
       }
       return true;
