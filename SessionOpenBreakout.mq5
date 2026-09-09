@@ -1,7 +1,7 @@
 #property copyright "SessionOpenBreakout"
-#property version "1.10"
+#property version "1.11"
 #property strict
-#property description "London/NY opening-range breakout momentum hypothesis. The first InpORBars M5 bars of a session window define the opening range; a later close through the range in the breakout direction triggers a momentum entry with optional H1 trend alignment. Configured for a flat $200 bankroll (profits withdrawn, non-compounding): 15% per-trade risk at 1:100 margin ceiling, 60% daily drawdown tolerance."
+#property description "London/NY opening-range breakout momentum hypothesis. The first InpORBars M5 bars of a session window define the opening range; a later close through the range in the breakout direction triggers a momentum entry with optional H1 trend alignment. Optional structural filters: entry window (signal must form early in the session), volatility regime (skip days with extreme H1 ATR vs recent median), and H4 trend alignment. Configured for a flat $200 bankroll (profits withdrawn, non-compounding): 15% per-trade risk at 1:100 margin ceiling, 60% daily drawdown tolerance."
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090777;
@@ -35,6 +35,11 @@ input int InpBlockServerHourFrom=-1;
 input int InpBlockServerHourTo=-1;
 input int InpBlockServerHourFrom2=-1;
 input int InpBlockServerHourTo2=-1;
+input int InpEntryWindowMinutes=0;
+input bool InpVolatilityFilter=false;
+input double InpATRLowRatio=0.5;
+input double InpATRHighRatio=2.0;
+input bool InpH4Bias=false;
 input double InpRewardRisk=1.5;
 input double InpEarlyTargetR=0.0;
 input double InpATRBuffer=0.2;
@@ -60,6 +65,9 @@ string g_status="Starting";
 int g_setups=0,g_attempts=0,g_opened=0;
 datetime g_nextEntryCheck=0;
 int g_h1ema=INVALID_HANDLE;
+int g_h4ema=INVALID_HANDLE;
+int g_atr=INVALID_HANDLE;
+datetime g_sessionStart=0;
 
 bool opening=false;
 int openingBars=0;
@@ -74,11 +82,59 @@ bool InSession(datetime now)
 {
    return SessionOpen(UTCNow(now),InpEnableLondon?InpLondonStart:0,InpEnableLondon?InpLondonEnd:0,InpEnableNewYork?InpNewYorkStart:0,InpEnableNewYork?InpNewYorkEnd:0);
 }
+datetime SessionStartServer(datetime bar)
+{
+   datetime u=UTCNow(bar);
+   int off=(int)MathRound(InpServerUTCOffsetHours*3600);
+   int lIdx=InpEnableLondon?InpLondonStart:99;
+   int nIdx=InpEnableNewYork?InpNewYorkStart:99;
+   int lDst=LondonDST(u)?3600:0;
+   int nDst=NewYorkDST(u)?(-4*3600):(-5*3600);
+   MqlDateTime l,n; TimeToStruct(u+lDst,l); TimeToStruct(u+nDst,n);
+   bool inLondon=(l.hour>=InpLondonStart && l.hour<InpLondonEnd && l.day_of_week>=1 && l.day_of_week<=5);
+   bool inNY=(n.hour>=InpNewYorkStart && n.hour<InpNewYorkEnd && n.day_of_week>=1 && n.day_of_week<=5);
+   MqlDateTime d; TimeToStruct(u,d);
+   datetime uMid; d.hour=0; d.min=0; d.sec=0; uMid=StructToTime(d);
+   if(inLondon)
+   {
+      datetime lStart=uMid+InpLondonStart*3600-lDst;
+      if(lStart>u) lStart-=86400;
+      return lStart+off;
+   }
+   datetime nStart=uMid+InpNewYorkStart*3600-nDst;
+   if(nStart>u) nStart-=86400;
+   return nStart+off;
+}
 bool H1BiasOk(int dir)
 {
    double b[1],c[1];
    if(CopyBuffer(g_h1ema,0,1,1,b)!=1 || CopyClose(_Symbol,PERIOD_H1,1,1,c)!=1) return false;
    return dir*(c[0]-b[0])>0;
+}
+bool H4BiasOk(int dir)
+{
+   double b[1],c[1];
+   if(CopyBuffer(g_h4ema,0,1,1,b)!=1 || CopyClose(_Symbol,PERIOD_H4,1,1,c)!=1) return false;
+   return dir*(c[0]-b[0])>0;
+}
+bool VolatilityOk(datetime now)
+{
+   if(!InpVolatilityFilter) return true;
+   double a[120];
+   if(CopyBuffer(g_atr,0,2,120,a)!=120) return true;
+   double sum=0; int cnt=0;
+   for(int i=0;i<120;i++) { if(a[i]<=0) continue; sum+=a[i]; cnt++; }
+   if(cnt<60) return true;
+   double median=sum/cnt;
+   double cur[1];
+   if(CopyBuffer(g_atr,0,1,1,cur)!=1 || cur[0]<=0) return false;
+   double ratio=cur[0]/median;
+   return ratio>=InpATRLowRatio && ratio<=InpATRHighRatio;
+}
+bool EntryWindowOk(datetime bar)
+{
+   if(InpEntryWindowMinutes<=0 || g_sessionStart==0) return true;
+   return (bar-g_sessionStart)<=(datetime)InpEntryWindowMinutes*60;
 }
 bool WeekdayOk(datetime ts)
 {
@@ -135,10 +191,20 @@ bool Maintain(datetime now)
 }
 int OnInit()
 {
-   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd || InpBlockServerHourFrom<-1 || InpBlockServerHourFrom>23 || (InpBlockServerHourTo<-1) || InpBlockServerHourTo>24 || InpBlockServerHourFrom2<-1 || InpBlockServerHourFrom2>23 || (InpBlockServerHourTo2<-1) || InpBlockServerHourTo2>24)
+   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd || InpBlockServerHourFrom<-1 || InpBlockServerHourFrom>23 || (InpBlockServerHourTo<-1) || InpBlockServerHourTo>24 || InpBlockServerHourFrom2<-1 || InpBlockServerHourFrom2>23 || (InpBlockServerHourTo2<-1) || InpBlockServerHourTo2>24 || InpEntryWindowMinutes<0 || InpEntryWindowMinutes>480 || InpATRLowRatio<=0 || InpATRHighRatio<InpATRLowRatio || InpATRHighRatio>10)
       return INIT_PARAMETERS_INCORRECT;
    g_h1ema=iMA(_Symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
    if(g_h1ema==INVALID_HANDLE) return INIT_FAILED;
+   if(InpH4Bias)
+   {
+      g_h4ema=iMA(_Symbol,PERIOD_H4,50,0,MODE_EMA,PRICE_CLOSE);
+      if(g_h4ema==INVALID_HANDLE) return INIT_FAILED;
+   }
+   if(InpVolatilityFilter)
+   {
+      g_atr=iATR(_Symbol,PERIOD_H1,14);
+      if(g_atr==INVALID_HANDLE) return INIT_FAILED;
+   }
    if(MQLInfoInteger(MQL_TESTER))
    {
       Print("OR Breakout TESTER: price-only test; economic calendar filter bypassed.");
@@ -155,7 +221,9 @@ void OnDeinit(const int reason)
    PrintFormat("OR Breakout summary: setups=%d, entry evaluations=%d, opened=%d",g_setups,g_attempts,g_opened);
    EventKillTimer(); Comment("");
    if(g_h1ema!=INVALID_HANDLE) IndicatorRelease(g_h1ema);
-   g_h1ema=INVALID_HANDLE;
+   if(g_h4ema!=INVALID_HANDLE) IndicatorRelease(g_h4ema);
+   if(g_atr!=INVALID_HANDLE) IndicatorRelease(g_atr);
+   g_h1ema=INVALID_HANDLE; g_h4ema=INVALID_HANDLE; g_atr=INVALID_HANDLE;
 }
 void OnTimer()
 {
@@ -175,30 +243,43 @@ void OnTick()
    if(pending && now>=setup.expires) pending=false;
    if(bar>0 && bar!=lastBar)
    {
-      datetime prev=lastBar; lastBar=bar;
+      lastBar=bar;
       MqlRates r[]; ArraySetAsSeries(r,true);
       if(CopyRates(_Symbol,PERIOD_M5,1,2,r)!=2) { Display(); return; }
-      bool prevIn=InSession(prev),curIn=InSession(bar);
-      if(curIn && !prevIn) { opening=false; openingBars=0; orHigh=orLow=0; }
+      bool curIn=InSession(bar);
+      if(curIn)
+      {
+         datetime ss=SessionStartServer(bar);
+         if(g_sessionStart!=ss)
+         {
+            g_sessionStart=ss; opening=false; openingBars=0; orHigh=orLow=0;
+         }
+      }
+      else
+      {
+         opening=false; openingBars=0; orHigh=orLow=0;
+      }
       if(curIn)
       {
          if(!opening)
          {
-            opening=true; openingBars=1; orHigh=r[0].high; orLow=r[0].low;
+            opening=true; openingBars=1;
+            orHigh=r[0].high; orLow=r[0].low;
          }
          else if(openingBars<InpORBars)
          {
             orHigh=MathMax(orHigh,r[0].high); orLow=MathMin(orLow,r[0].low);
             openingBars++;
          }
-         if(openingBars>=InpORBars)
+         if(openingBars>=InpORBars && EntryWindowOk(bar))
          {
-            // Breakout on a close beyond the finalized range.
             if((!pending) && r[0].close>orHigh)
             {
                setup.direction=1; setup.trigger=orHigh; setup.stop=orLow;
                setup.barrier=0; setup.expires=bar+PeriodSeconds(PERIOD_M5)*36;
-               if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+               else if(InpH4Bias && !H4BiasOk(setup.direction)) { g_status="Range break but opposing H4"; }
+               else if(!VolatilityOk(bar)) { g_status="Range break but extreme volatility"; }
                else if(!WeekdayOk(bar)) { g_status="Range break but filtered weekday"; }
                else if(ServerHourBlocked(bar)) { g_status="Range break but blocked server hour"; }
                else { pending=true; g_setups++; g_nextEntryCheck=0; }
@@ -209,6 +290,8 @@ void OnTick()
                setup.barrier=0; setup.expires=bar+PeriodSeconds(PERIOD_M5)*36;
                if(InpLongOnly) { g_status="Range break but long-only"; }
                else if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+               else if(InpH4Bias && !H4BiasOk(setup.direction)) { g_status="Range break but opposing H4"; }
+               else if(!VolatilityOk(bar)) { g_status="Range break but extreme volatility"; }
                else if(!WeekdayOk(bar)) { g_status="Range break but filtered weekday"; }
                else if(ServerHourBlocked(bar)) { g_status="Range break but blocked server hour"; }
                else { pending=true; g_setups++; g_nextEntryCheck=0; }
