@@ -24,6 +24,7 @@ input int InpORBars=6;
 input double InpBufferATR=1.5;
 input int InpLookback=6;
 input double InpRewardRisk=3.0;
+input bool InpBarrierBlock=true;
 input bool InpAllowLong=true;
 input bool InpAllowShort=true;
 input group "Signal-engine filters"
@@ -146,6 +147,7 @@ void OnNewBar(datetime bar)
    ScalperSignal s;
    if(!engine.Build(s,InpBufferATR,2.0,InpLookback,InpCandleFilter,InpTrendFilter,InpStrongClose,InpTrendVeto,InpH1Bias,InpTightReclaim)) return;
    if(s.direction!=g_dir) return;
+   if(!InpBarrierBlock) s.barrier=0;
    setup=s;
    g_armed=true; g_entries++;
 }
