@@ -1,0 +1,19 @@
+ALL: n=694, win%=44.7, net=-1108.53, avg=-1.60, PF=0.78
+side=buy: n=376, win%=44.4, net=-653.55, avg=-1.74, PF=0.77
+side=sell: n=318, win%=45.0, net=-454.98, avg=-1.43, PF=0.80
+session=London: n=287, win%=41.1, net=-612.36, avg=-2.13, PF=0.72
+session=New York: n=407, win%=47.2, net=-496.17, avg=-1.22, PF=0.83
+weekday=Friday: n=130, win%=45.4, net=-207.15, avg=-1.59, PF=0.78
+weekday=Monday: n=140, win%=45.7, net=-249.92, avg=-1.79, PF=0.76
+weekday=Thursday: n=141, win%=44.0, net=-230.97, avg=-1.64, PF=0.79
+weekday=Tuesday: n=140, win%=44.3, net=-243.09, avg=-1.74, PF=0.76
+weekday=Wednesday: n=143, win%=44.1, net=-177.40, avg=-1.24, PF=0.83
+late=False: n=550, win%=44.4, net=-927.63, avg=-1.69, PF=0.79
+late=True: n=144, win%=45.8, net=-180.90, avg=-1.26, PF=0.75
+exit=Market/session: n=148, win%=58.1, net=303.24, avg=2.05, PF=1.92
+exit=SL/trailing: n=409, win%=21.3, net=-4478.35, avg=-10.95, PF=0.06
+exit=TP: n=137, win%=100.0, net=3066.58, avg=22.38, PF=0.00
+hour=London 08: n=161, win%=39.1, net=-422.50, avg=-2.62, PF=0.70
+hour=London 09: n=126, win%=43.7, net=-189.86, avg=-1.51, PF=0.75
+hour=New York 08: n=236, win%=46.2, net=-235.13, avg=-1.00, PF=0.88
+hour=New York 09: n=171, win%=48.5, net=-261.04, avg=-1.53, PF=0.76
