@@ -5,11 +5,11 @@
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090999;
-input double InpRiskMoney=10.0;
-input double InpRiskPercent=3.0;
-input double InpDailyMaxLoss=30.0;
-input double InpDailyTarget=30.0;
-input double InpDailyDrawdown=30.0;
+input double InpRiskMoney=17.0;
+input double InpRiskPercent=5.0;
+input double InpDailyMaxLoss=50.0;
+input double InpDailyTarget=50.0;
+input double InpDailyDrawdown=50.0;
 input int InpMaxEntries=6;
 input int InpLossCooldownMinutes=15;
 input group "Sessions (local city hours, end exclusive)"
