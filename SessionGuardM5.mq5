@@ -1,5 +1,5 @@
 #property copyright "SessionGuard M5"
-#property version "1.00"
+#property version "1.01"
 #property strict
 #property description "EURUSD M5 pullback scalper with M15 trend confirmation and daily equity guards."
 
@@ -60,6 +60,7 @@ bool InSession(datetime now)
 void Display()
 {
    Comment("SessionGuard M5 | ",_Symbol,"\n",g_status,
+           (MQLInfoInteger(MQL_TESTER)?"\nTESTER: price-only, news bypassed; manual broker UTC offset":""),
            "\nDaily account equity P/L: ",DoubleToString(guard.pnl,2)," ",AccountInfoString(ACCOUNT_CURRENCY),
            " | Entries: ",guard.entries,"/",InpMaxEntries,
            "\nLoss limit: ",InpDailyMaxLoss," | Target: ",InpDailyTarget," | Peak DD: ",InpDailyDrawdown);
@@ -87,10 +88,11 @@ int OnInit()
    { Print("Attach SessionGuard M5 to your broker's EURUSD symbol (suffixes supported)."); return INIT_PARAMETERS_INCORRECT; }
    if(InpMagic==0 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpRewardRisk<1 || InpATRBuffer<0 || InpMaxCandleATR<=0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpNewsWindowMinutes<1 || InpServerUTCOffsetHours< -14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd)
       return INIT_PARAMETERS_INCORRECT;
-   if(MQLInfoInteger(MQL_TESTER) && InpNewsFilter)
-   { Print("Calendar unavailable in Strategy Tester: set InpNewsFilter=false explicitly for price-only testing."); return INIT_PARAMETERS_INCORRECT; }
-   if(MQLInfoInteger(MQL_TESTER) && InpAutoServerUTC)
-   { Print("Set InpAutoServerUTC=false and configure historical broker UTC offset for testing."); return INIT_PARAMETERS_INCORRECT; }
+   if(MQLInfoInteger(MQL_TESTER))
+   {
+      Print("SessionGuard M5 TESTER: price-only test; economic calendar filter bypassed (historical calendar unavailable).");
+      PrintFormat("SessionGuard M5 TESTER: using configured broker UTC offset %.2f hours; automatic live UTC is not used.",InpServerUTCOffsetHours);
+   }
    if(!signals.Init()) return INIT_FAILED;
    execution.Init(InpMagic,InpDeviationPoints); guard.Init(InpMagic);
    pending=false; lastBar=iTime(_Symbol,PERIOD_M5,0);

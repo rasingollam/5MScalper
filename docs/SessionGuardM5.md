@@ -1,6 +1,6 @@
-# SessionGuard M5 — Strategy and operating guide
+# SessionGuard M5 â€” Strategy and operating guide
 
-Version 1.00 · 9 September 2026
+Version 1.01 Â· 9 September 2026
 
 SessionGuard M5 is a MetaTrader 5 Expert Advisor for EUR/USD. It trades M5 pullbacks in an M15 trend, only during defined London and New York sessions. Its default planned reward/risk is 1.5, with a 100-unit daily loss shutdown, a 150-unit daily target, and a 75-unit trailing daily equity drawdown shutdown. All money settings use the account's deposit currency, not necessarily USD.
 
@@ -22,8 +22,8 @@ This is an implemented starting strategy, not an optimized or demonstrated profi
 
 ## Installation
 
-1. In the terminal installed at `D:\Trading\terminal64.exe`, choose **File → Open Data Folder**. Confirm it is the terminal data folder containing this `MQL5\Experts\5MScalper` directory. The installation folder and data folder are different locations.
-2. Refresh **Navigator → Expert Advisors**. `5MScalper\SessionGuardM5` should appear. If the terminal uses a different data folder, copy the EA and `helpers` into that folder's `MQL5\Experts\5MScalper`, then compile there.
+1. In the terminal installed at `D:\Trading\terminal64.exe`, choose **File â†’ Open Data Folder**. Confirm it is the terminal data folder containing this `MQL5\Experts\5MScalper` directory. The installation folder and data folder are different locations.
+2. Refresh **Navigator â†’ Expert Advisors**. `5MScalper\SessionGuardM5` should appear. If the terminal uses a different data folder, copy the EA and `helpers` into that folder's `MQL5\Experts\5MScalper`, then compile there.
 3. Use a demo account first. Attach one instance to your broker's EUR/USD chart, preferably M5. Broker prefixes/suffixes work when the symbol metadata specifies EUR base and USD profit currency. Other currency pairs are rejected.
 4. Configure the commission estimate and risk inputs for the account. Check the broker's minimum lot size; the EA skips a trade if minimum volume would exceed its risk budget.
 5. Keep the computer clock accurate. Allow algorithmic trading when ready to demo-test. No DLL or WebRequest permission is required.
@@ -44,13 +44,13 @@ Building this project does not attach the EA or enable live trading.
 - With automatic UTC enabled in live trading, sessions use `TimeGMT()`. Broker midnight, deal history and calendar queries use broker/server time.
 - A signal candle must have opened within a session. Consequently the earliest ordinary signal follows the first completed M5 candle of that session.
 
-In Sri Lanka, the London window is 12:30–14:30 during UK summer and 13:30–15:30 during UK winter. The New York window is 17:30–19:30 during US summer and 18:30–20:30 during US winter. UK and US transition dates differ.
+In Sri Lanka, the London window is 12:30â€“14:30 during UK summer and 13:30â€“15:30 during UK winter. The New York window is 17:30â€“19:30 during US summer and 18:30â€“20:30 during US winter. UK and US transition dates differ.
 
 ### Buy setup
 
 1. On the last closed M15 candle, EMA20 is above EMA50. Both are higher than their preceding closed-bar values.
 2. The last closed M5 candle touches or crosses EMA20 with its low, then closes above EMA20 and above its own open.
-3. Its high-to-low range is no greater than 1.5 × M5 ATR(14).
+3. Its high-to-low range is no greater than 1.5 Ã— M5 ATR(14).
 4. Arm a virtual breakout at that candle's high. Enter at market when Bid breaks above the high; buys fill at Ask. The setup lasts two M5 bars, and a newer valid setup can replace it.
 5. Recheck the M15 trend at the breakout. Invalidate the setup if price has reached its stop, it expires, trading is blocked, or a position/order occupies the symbol.
 
@@ -61,7 +61,7 @@ Sell rules reverse the comparisons. Signal indicators use closed bars only. A re
 - Initial stop: lowest low of the last three closed M5 bars for buys, or highest high for sells, plus a 0.2 ATR outward buffer.
 - Initial TP: 1.5 times the entry-to-stop distance by default. `InpRewardRisk` accepts 1.0 or higher.
 - Prices are rounded to the broker's tick size. Initial stops and targets are sent with the market order; there is no retry that deliberately opens an unprotected position.
-- Search bars 3–21 for confirmed one-neighbor local pivots. If the nearest pivot in the trade direction is at or before the proposed target, skip the trade. This is a simple support/resistance approximation.
+- Search bars 3â€“21 for confirmed one-neighbor local pivots. If the nearest pivot in the trade direction is at or before the proposed target, skip the trade. This is a simple support/resistance approximation.
 - SL distance, spread, margin, minimum volume and broker restrictions can reject an otherwise valid setup. Each breakout gets only one execution attempt, to avoid blind resubmission after ambiguous replies.
 
 RR is a planned gross price ratio. Commission, fills, trailing, session exits and daily shutdowns change realized RR, which may be below 1:1. The EA does not promise every trade will realize at least 1R.
@@ -87,9 +87,9 @@ Daily guards measure **total account equity**, including floating P/L and charge
 
 | Guard | Default trigger |
 | --- | --- |
-| Daily loss | Equity minus saved baseline ≤ −100 |
-| Daily target | Equity minus saved baseline ≥ +150 |
-| Daily peak drawdown | Saved intraday equity peak minus equity ≥ 75 |
+| Daily loss | Equity minus saved baseline â‰¤ âˆ’100 |
+| Daily target | Equity minus saved baseline â‰¥ +150 |
+| Daily peak drawdown | Saved intraday equity peak minus equity â‰¥ 75 |
 
 A lock clears virtual setups, blocks new entries and repeatedly attempts to close **only positions matching this symbol and magic number**, at least two seconds apart. It lasts until the next observed broker day. Other account positions are not closed, although their equity changes can trigger the guard. Thus the guard cannot cap the entire account's losses when other trading remains active.
 
@@ -107,7 +107,7 @@ The EA queries MT5's built-in calendar for high-importance EUR and USD releases 
 
 Calendar query or event lookup failure blocks new entries. A successful empty response means no scheduled event was returned; the EA cannot independently detect an incomplete broker calendar. Unscheduled news is not covered.
 
-MT5's economic calendar is unavailable in Strategy Tester. Testing with news enabled is rejected at initialization rather than silently omitting the filter. A historical calendar-file replay is not implemented in this version.
+MT5's economic calendar is unavailable in Strategy Tester. Tester runs automatically bypass the news filter, even with the live defaults. The initialization journal and on-chart panel explicitly identify these as price-only tests. A historical calendar-file replay is not implemented in this version.
 
 ## Inputs
 
@@ -141,11 +141,11 @@ For five-digit EUR/USD, 10 points equal one pip. The actual permitted execution 
 
 ## Validation and backtesting
 
-The EA was compiled using `D:\Trading\MetaEditor64.exe`; see `compile.log` for the result. No profitability backtest or live/demo execution result is claimed by this delivery.
+The EA was compiled using `D:\Trading\MetaEditor64.exe`; see `compile.log` for the result. Version 1.01 also passed the short tester startup/runtime regression check below. No profitability or live/demo execution result is claimed.
 
 1. Open Strategy Tester and select `5MScalper\SessionGuardM5`, your EUR/USD symbol and M5.
 2. Select **Every tick based on real ticks**, with sufficient history to warm up M15 EMA50. Use the intended account currency, realistic starting equity, leverage and commission.
-3. Load `Backtest-PriceOnly.set`. It explicitly disables news and automatic UTC. Set the manual offset to the broker's offset over the tested dates.
+3. Default inputs now start in the tester. News is automatically bypassed and the configured manual broker UTC offset is always used in tester mode. The optional `Backtest-PriceOnly.set` makes these settings explicit. Set the offset to the broker's offset over the tested dates.
 4. If the broker changes its server UTC offset seasonally, split the test at those changes and use the appropriate offset in each segment. London/New York DST conversion remains automatic, but the historical broker offset is manual.
 5. These results test price/session/risk logic **without news filtering**. They do not validate the complete live strategy.
 6. Compare trailing enabled versus disabled, then use unseen dates and a demo forward test. Review costs, trade count, drawdown and loss clusters, not just net profit. Do not optimize against a daily income target.
@@ -158,3 +158,9 @@ Before live use, verify in tester/demo: no entries outside sessions; M15 trend/c
 - [MT5 CTrade PositionModify: check server return codes](https://www.mql5.com/en/docs/standardlibrary/tradeclasses/ctrade/ctradepositionmodify)
 
 The implementation checks trade-server return codes and logs rejected operations in the Experts journal. The on-chart panel shows the current block/wait state, daily account-equity P/L and entry count.
+
+## Version 1.01 startup fix and regression check
+
+The original tester log confirmed that `OnInit` rejected the default news setting. A second check rejected default automatic UTC. Both tester-only startup rejections were removed. Tester mode bypasses unavailable calendar queries and uses `InpServerUTCOffsetHours`, with explicit journal and chart notices. Live calendar failures still block new entries.
+
+An isolated MT5 Strategy Tester run with default EA inputs completed on EURUSD M5, 2025-06-02 through 2025-06-04 (end exclusive), using generated every-tick mode: **125,652 ticks and 576 bars**, with no runtime error. No trades occurred in this short run. This verifies startup and processing through the test period, not profitability or order execution. Evidence: `tester-startup-validation.log`. Compilation: **0 errors, 0 warnings**.

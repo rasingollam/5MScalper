@@ -10,8 +10,9 @@ public:
    bool Blocked(datetime now,int minutes,bool enabled)
    {
       if(!enabled) return false;
-      // Calendar is unavailable in the tester. Explicitly disable to test price logic.
-      if(MQLInfoInteger(MQL_TESTER)) return true;
+      // Historical calendar is unavailable in MT5 tester. OnInit and the panel
+      // explicitly label tester results as price-only; live failure stays closed.
+      if(MQLInfoInteger(MQL_TESTER)) return false;
       if(checked!=0 && now>=checked && now-checked<30) return blocked;
       checked=now; blocked=false;
       string currencies[2]={"EUR","USD"};
