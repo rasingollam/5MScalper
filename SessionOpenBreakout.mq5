@@ -25,6 +25,14 @@ input double InpServerUTCOffsetHours=0.0;
 input group "Signal and execution"
 input int InpORBars=3;
 input bool InpH1Bias=true;
+input bool InpLongOnly=false;
+input bool InpTradeMon=true;
+input bool InpTradeTue=true;
+input bool InpTradeWed=true;
+input bool InpTradeThu=true;
+input bool InpTradeFri=true;
+input int InpBlockServerHourFrom=-1;
+input int InpBlockServerHourTo=-1;
 input double InpRewardRisk=1.5;
 input double InpEarlyTargetR=0.0;
 input double InpATRBuffer=0.2;
@@ -70,6 +78,28 @@ bool H1BiasOk(int dir)
    if(CopyBuffer(g_h1ema,0,1,1,b)!=1 || CopyClose(_Symbol,PERIOD_H1,1,1,c)!=1) return false;
    return dir*(c[0]-b[0])>0;
 }
+bool WeekdayOk(datetime ts)
+{
+   MqlDateTime t; TimeToStruct(ts,t);
+   switch(t.day_of_week)
+   {
+      case 0: return true;
+      case 1: return InpTradeMon;
+      case 2: return InpTradeTue;
+      case 3: return InpTradeWed;
+      case 4: return InpTradeThu;
+      case 5: return InpTradeFri;
+   }
+   return true;
+}
+bool ServerHourBlocked(datetime ts)
+{
+   if(InpBlockServerHourFrom<0 || InpBlockServerHourTo<=InpBlockServerHourFrom) return false;
+   MqlDateTime t; TimeToStruct(ts,t);
+   int h=t.hour;
+   if(InpBlockServerHourFrom<InpBlockServerHourTo) return h>=InpBlockServerHourFrom && h<InpBlockServerHourTo;
+   return h>=InpBlockServerHourFrom || h<InpBlockServerHourTo;
+}
 void Display()
 {
    Comment("OR Breakout | ",_Symbol,"\n",g_status,
@@ -98,7 +128,7 @@ bool Maintain(datetime now)
 }
 int OnInit()
 {
-   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd)
+   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd || InpBlockServerHourFrom<-1 || InpBlockServerHourFrom>23 || (InpBlockServerHourTo<-1) || InpBlockServerHourTo>24)
       return INIT_PARAMETERS_INCORRECT;
    g_h1ema=iMA(_Symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
    if(g_h1ema==INVALID_HANDLE) return INIT_FAILED;
@@ -162,13 +192,18 @@ void OnTick()
                setup.direction=1; setup.trigger=orHigh; setup.stop=orLow;
                setup.barrier=0; setup.expires=bar+PeriodSeconds(PERIOD_M5)*36;
                if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+               else if(!WeekdayOk(bar)) { g_status="Range break but filtered weekday"; }
+               else if(ServerHourBlocked(bar)) { g_status="Range break but blocked server hour"; }
                else { pending=true; g_setups++; g_nextEntryCheck=0; }
             }
             else if((!pending) && r[0].close<orLow)
             {
                setup.direction=-1; setup.trigger=orLow; setup.stop=orHigh;
                setup.barrier=0; setup.expires=bar+PeriodSeconds(PERIOD_M5)*36;
-               if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+               if(InpLongOnly) { g_status="Range break but long-only"; }
+               else if(InpH1Bias && !H1BiasOk(setup.direction)) { g_status="Range break but opposing H1"; }
+               else if(!WeekdayOk(bar)) { g_status="Range break but filtered weekday"; }
+               else if(ServerHourBlocked(bar)) { g_status="Range break but blocked server hour"; }
                else { pending=true; g_setups++; g_nextEntryCheck=0; }
             }
          }
