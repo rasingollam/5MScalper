@@ -1,7 +1,7 @@
 #property copyright "SessionGuard M5"
-#property version "1.20"
+#property version "1.21"
 #property strict
-#property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards and an optional early take-profit mode."
+#property description "EURUSD M5 lower-low/higher-high reclaim entries with daily equity guards, optional early take-profit mode, H1 trend bias and tight-reclaim confirmation."
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090901;
@@ -27,6 +27,8 @@ input int InpSweepLookback=6;
 input bool InpStrongRejectionClose=false;
 input bool InpOpposingTrendVeto=false;
 input bool InpUseTrendFilter=false;
+input bool InpH1Bias=true;
+input bool InpTightReclaim=true;
 input bool InpUseCandleFilter=false;
 input double InpRewardRisk=1.5;
 input double InpEarlyTargetR=0.5;
@@ -138,7 +140,7 @@ void OnTick()
    {
       lastBar=bar;
       ScalperSignal candidate;
-      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR,InpSweepLookback,InpUseCandleFilter,InpUseTrendFilter,InpStrongRejectionClose,InpOpposingTrendVeto))
+      if(InSession(bar-PeriodSeconds(PERIOD_M5)) && signals.Build(candidate,InpATRBuffer,InpMaxCandleATR,InpSweepLookback,InpUseCandleFilter,InpUseTrendFilter,InpStrongRejectionClose,InpOpposingTrendVeto,InpH1Bias,InpTightReclaim))
       {
          if(!InpUsePivotFilter) candidate.barrier=0;
          setup=candidate; pending=true; g_setups++; g_nextEntryCheck=0;

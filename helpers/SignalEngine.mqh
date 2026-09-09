@@ -9,14 +9,23 @@ struct ScalperSignal
 class CSignalEngine
 {
 private:
-   int fast,slow,pullback,atr,adx;
+   int fast,slow,pullback,atr,adx,h1bias;
    double Value(int handle,int shift)
    {
       double b[1]; if(CopyBuffer(handle,0,shift,1,b)!=1) return EMPTY_VALUE;
       return b[0];
    }
+   double H1EMA(int shift)
+   {
+      return Value(h1bias,shift);
+   }
+   double H1Close(int shift)
+   {
+      double c[1]; if(CopyClose(_Symbol,PERIOD_H1,shift,1,c)!=1) return EMPTY_VALUE;
+      return c[0];
+   }
 public:
-   CSignalEngine():fast(INVALID_HANDLE),slow(INVALID_HANDLE),pullback(INVALID_HANDLE),atr(INVALID_HANDLE),adx(INVALID_HANDLE) {}
+   CSignalEngine():fast(INVALID_HANDLE),slow(INVALID_HANDLE),pullback(INVALID_HANDLE),atr(INVALID_HANDLE),adx(INVALID_HANDLE),h1bias(INVALID_HANDLE) {}
    bool Init()
    {
       fast=iMA(_Symbol,PERIOD_M15,20,0,MODE_EMA,PRICE_CLOSE);
@@ -24,7 +33,8 @@ public:
       pullback=iMA(_Symbol,PERIOD_M5,20,0,MODE_EMA,PRICE_CLOSE);
       atr=iATR(_Symbol,PERIOD_M5,14);
       adx=iADX(_Symbol,PERIOD_M15,14);
-      return fast!=INVALID_HANDLE && slow!=INVALID_HANDLE && pullback!=INVALID_HANDLE && atr!=INVALID_HANDLE && adx!=INVALID_HANDLE;
+      h1bias=iMA(_Symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
+      return fast!=INVALID_HANDLE && slow!=INVALID_HANDLE && pullback!=INVALID_HANDLE && atr!=INVALID_HANDLE && adx!=INVALID_HANDLE && h1bias!=INVALID_HANDLE;
    }
    void Release()
    {
@@ -33,6 +43,7 @@ public:
       if(pullback!=INVALID_HANDLE) IndicatorRelease(pullback);
       if(atr!=INVALID_HANDLE) IndicatorRelease(atr);
       if(adx!=INVALID_HANDLE) IndicatorRelease(adx);
+      if(h1bias!=INVALID_HANDLE) IndicatorRelease(h1bias);
    }
    bool TrendValid(int dir)
    {
@@ -46,7 +57,13 @@ public:
       if(strength==EMPTY_VALUE || f==EMPTY_VALUE || s==EMPTY_VALUE) return true;
       return strength>25 && dir*(f-s)<0;
    }
-   bool Build(ScalperSignal &s,double buffer,double maxCandle,int lookback,bool candleFilter,bool trendFilter,bool strongClose,bool trendVeto)
+   bool H1BiasValid(int dir)
+   {
+      double e=H1EMA(1),c=H1Close(1);
+      if(e==EMPTY_VALUE || c==EMPTY_VALUE) return false;
+      return dir*(c-e)>0;
+   }
+   bool Build(ScalperSignal &s,double buffer,double maxCandle,int lookback,bool candleFilter,bool trendFilter,bool strongClose,bool trendVeto,bool h1Bias,bool tightReclaim)
    {
       MqlRates r[]; ArraySetAsSeries(r,true);
       int count=MathMax(24,lookback+2);
@@ -65,6 +82,8 @@ public:
       bool sell=r[1].high>priorHigh && r[1].close<priorHigh;
       if(buy==sell) return false; // Neither side, or an ambiguous double sweep.
       int dir=buy?1:-1;
+      if(tightReclaim && !(buy?r[1].close>r[2].close:r[1].close<r[2].close)) return false;
+      if(h1Bias && !H1BiasValid(dir)) return false;
       double range=r[1].high-r[1].low;
       if(strongClose && (range<=0 || (buy?r[1].close<r[1].high-range/3.0:r[1].close>r[1].low+range/3.0))) return false;
       if(trendVeto && OpposingTrend(dir)) return false;
