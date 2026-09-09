@@ -33,6 +33,8 @@ input bool InpTradeThu=true;
 input bool InpTradeFri=true;
 input int InpBlockServerHourFrom=-1;
 input int InpBlockServerHourTo=-1;
+input int InpBlockServerHourFrom2=-1;
+input int InpBlockServerHourTo2=-1;
 input double InpRewardRisk=1.5;
 input double InpEarlyTargetR=0.0;
 input double InpATRBuffer=0.2;
@@ -94,11 +96,16 @@ bool WeekdayOk(datetime ts)
 }
 bool ServerHourBlocked(datetime ts)
 {
-   if(InpBlockServerHourFrom<0 || InpBlockServerHourTo<=InpBlockServerHourFrom) return false;
+   if(ServerHourBlockedRange(ts,InpBlockServerHourFrom,InpBlockServerHourTo)) return true;
+   return ServerHourBlockedRange(ts,InpBlockServerHourFrom2,InpBlockServerHourTo2);
+}
+bool ServerHourBlockedRange(datetime ts,int fromHour,int toHour)
+{
+   if(fromHour<0 || toHour<=fromHour) return false;
    MqlDateTime t; TimeToStruct(ts,t);
    int h=t.hour;
-   if(InpBlockServerHourFrom<InpBlockServerHourTo) return h>=InpBlockServerHourFrom && h<InpBlockServerHourTo;
-   return h>=InpBlockServerHourFrom || h<InpBlockServerHourTo;
+   if(fromHour<toHour) return h>=fromHour && h<toHour;
+   return h>=fromHour || h<toHour;
 }
 void Display()
 {
@@ -128,7 +135,7 @@ bool Maintain(datetime now)
 }
 int OnInit()
 {
-   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd || InpBlockServerHourFrom<-1 || InpBlockServerHourFrom>23 || (InpBlockServerHourTo<-1) || InpBlockServerHourTo>24)
+   if(InpORBars<1 || InpORBars>24 || InpRewardRisk<1 || InpEarlyTargetR<0 || InpEarlyTargetR>10 || InpRiskMoney<=0 || InpRiskPercent<=0 || InpRiskPercent>100 || InpDailyMaxLoss<=0 || InpDailyTarget<=0 || InpDailyDrawdown<=0 || InpMaxEntries<1 || InpLossCooldownMinutes<0 || InpATRBuffer<0 || InpMaxSpreadPips<=0 || InpMaxSpreadStopFraction<=0 || InpMaxSpreadStopFraction>1 || InpCommissionPerLot<0 || InpDeviationPoints<0 || InpServerUTCOffsetHours<-14 || InpServerUTCOffsetHours>14 || InpLondonStart<0 || InpLondonEnd>24 || InpLondonStart>=InpLondonEnd || InpNewYorkStart<0 || InpNewYorkEnd>24 || InpNewYorkStart>=InpNewYorkEnd || InpBlockServerHourFrom<-1 || InpBlockServerHourFrom>23 || (InpBlockServerHourTo<-1) || InpBlockServerHourTo>24 || InpBlockServerHourFrom2<-1 || InpBlockServerHourFrom2>23 || (InpBlockServerHourTo2<-1) || InpBlockServerHourTo2>24)
       return INIT_PARAMETERS_INCORRECT;
    g_h1ema=iMA(_Symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
    if(g_h1ema==INVALID_HANDLE) return INIT_FAILED;
