@@ -1,7 +1,7 @@
 #property copyright "SessionOpenBreakout"
-#property version "1.00"
+#property version "1.10"
 #property strict
-#property description "London/NY opening-range breakout momentum hypothesis. The first InpORBars M5 bars of a session window define the opening range; a later close through the range in the breakout direction triggers a momentum entry with optional H1 trend alignment. Null-hypothesis testable against random-entry benchmark (same sessions/risk/exits)."
+#property description "London/NY opening-range breakout momentum hypothesis. The first InpORBars M5 bars of a session window define the opening range; a later close through the range in the breakout direction triggers a momentum entry with optional H1 trend alignment. Configured for a flat $200 bankroll (profits withdrawn, non-compounding): 15% per-trade risk at 1:100 margin ceiling, 60% daily drawdown tolerance."
 
 input group "Identity and risk (account deposit currency)"
 input ulong InpMagic=5090777;
