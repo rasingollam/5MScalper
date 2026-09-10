@@ -47,13 +47,41 @@ On Model=4 real ticks, 2026 only: EURUSD -284.55 (PF 0.54, WR 23.1%),
 USDJPY -125.25 (PF 0.83, WR 25.0%). The single nominal winner fails the
 strictest execution model in the only untouched out-of-sample interval.
 
+## Full-universe walk-forward (IS 2022.01.01-2024.06.30, OOS 2024.07.01-2026.09.08)
+Grid: InpSignalTF {H1, H4} x InpChannelBars {20, 40, 80}, Model=1, all 7 symbols
+(EURUSD, GBPUSD, USDJPY, AUDUSD, NZDUSD, AUDNZD, GBPJPY), one global config
+selected on the IS block only by best mean net-after-commission@7 (no per-symbol
+cherry-picking), then run untouched on every symbol over the OOS block.
+
+IS mean net+comm@7 per config (7-symbol aggregate / 7):
+| config | mean | | config | mean |
+|---|---|---|---|---|
+| h1-c20 | -1 548 | | h4-c20 | -665 |
+| h1-c40 | -1 206 | | h4-c40 | -384 |
+| h1-c80 | -713 | | h4-c80 | -244 (chosen) |
+
+Even the globally best config is negative on IS. Chosen = h4-c80 (H4 signal,
+80-bar channel). OOS on h4-c80, net+comm@7: EURUSD -227 (PF 0.82), GBPUSD -248
+(0.82), USDJPY -228 (0.84), AUDUSD -290 (0.79), NZDUSD -259 (0.83), AUDNZD +187
+(1.25), GBPJPY -106 (0.92). Total -1 172 across 7 symbols; 6/7 negative; all
+runs 100% history quality, deal-reconciled.
+
+IS-period winners flipped in OOS (USDJPY +485..+1 169 on IS, -228 OOS;
+GBPJPY +357..+1 253 on IS, -106 OOS). The single positive OOS symbol (AUDNZD,
++187 on 54 trades) was negative on IS for every config -> consistent with noise,
+not an edge. DFS details: `scripts/wf-results.json` is written under
+`research/htf-corrected/`.
+
 ## Verdict
 None of the tested implementations yields a positive, stable, cost-aware
 expectancy. The framework (single-market/small-group rate curve breakouts with
 2.5x/3x ATR stops on EURUSD/H1-H4) is rejected as a hypothesis, not merely "not
 yet profitable": the failure is spread, robust to one-time param/filter changes,
-and worsens under corrected mechanics and real ticks. Data and scripts used:
-`scripts/htf_research.py`, `research/htf-corrected/*.json`.
+to parameterized signal-TF/channel grid search, and worsens under corrected
+mechanics and real ticks. The walk-forward closes the residual question — no
+config was aggregate-positive in-sample, and the globally best config still
+lost 1 172 USD out-of-sample. Data and scripts used: `scripts/htf_research.py`,
+`research/htf-corrected/*.json`.
 
 Default disposition: do NOT trade this line on this $200 account (fractional
 trade sizes also fall below minimum lot at 0.25% risk).

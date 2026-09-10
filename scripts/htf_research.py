@@ -24,7 +24,7 @@ def text(path):
     data = path.read_bytes()
     return data.decode('utf-16' if data.startswith((b'\xff\xfe', b'\xfe\xff')) else 'utf-8-sig')
 
-def analyze(path):
+def analyze(path, deposit=20000., anchor='2026.09.08'):
     raw = text(path)
     def stat(label):
         match = re.search(re.escape(label) + r'</td>\s*<td[^>]*><b>(.*?)</b>', raw, re.S)
@@ -48,7 +48,7 @@ def analyze(path):
     years = {}
     outcomes = []
     pending = None
-    peak = balance = 20000.
+    peak = balance = deposit
     peak_time = dt.datetime(2022, 1, 1)
     longest = 0.
     for d in deals:
@@ -66,7 +66,7 @@ def analyze(path):
             assert pending is not None
             outcomes.append(pending + value)
             pending = None
-    longest = max(longest, (dt.datetime(2026, 9, 8) - peak_time).total_seconds() / 86400)
+    longest = max(longest, (dt.datetime.strptime(anchor, '%Y.%m.%d') - peak_time).total_seconds() / 86400)
     result.update(net=round(net, 2), entry_lots=round(lots, 4), commission=round(commission, 2),
         swap=round(swap, 2), net_at_7_round_trip=round(net - lots * 7, 2),
         annual_net={k: round(v, 2) for k, v in years.items()},
@@ -88,7 +88,7 @@ def compile_all():
         assert '0 errors, 0 warnings' in output, output
         shutil.copy2(ROOT / (name + '.ex5'), QA / ('MQL5/Experts/5MScalper/' + name + '.ex5'))
 
-def run(name, expert, symbol='EURUSD', period='H1', inputs=None, model=1, frm='2022.01.01', to='2026.09.08'):
+def run(name, expert, symbol='EURUSD', period='H1', inputs=None, model=1, frm='2022.01.01', to='2026.09.08', deposit=20000.):
     preset = QA / ('MQL5/Profiles/Tester/' + name + '.set')
     preset.write_text('\n'.join(f'{k}={v}' for k, v in (inputs or {}).items()), encoding='ascii')
     config = TEMP / (name + '.ini')
@@ -108,7 +108,7 @@ ExecutionMode=100
 Optimization=0
 FromDate={frm}
 ToDate={to}
-Deposit=20000
+Deposit={int(deposit)}
 Currency=USD
 Leverage=100
 Visual=0
@@ -120,18 +120,20 @@ UseRemote=0
 UseCloud=0
 ''', encoding='ascii')
     report = QA / (name + '.htm')
-    old = report.stat().st_mtime if report.exists() else 0
+    old = max((p.stat().st_mtime for p in QA.glob(name + '*.htm')), default=0)
     proc = subprocess.Popen([str(EXE), '/config:' + str(config)], cwd=EXE.parent)
     proc.wait(timeout=1800)
     time.sleep(2)
-    assert report.exists() and report.stat().st_mtime > old, 'No fresh report: ' + name
+    reports = sorted(QA.glob(name + '*.htm'), key=lambda p: p.stat().st_mtime)
+    assert reports and reports[-1].stat().st_mtime > old, 'No fresh report: ' + name
+    report = reports[-1]
     raw = text(report)
     for key, value in (inputs or {}).items():
         found = re.search(re.escape(key) + r'=([^<]+)', raw)
         assert found and float(found[1]) == float(value), (key, value, found)
     shutil.copy2(report, OUT / report.name)
-    result = analyze(report)
-    result.update(symbol=symbol, timeframe=period, inputs=inputs or {})
+    result = analyze(report, deposit=deposit, anchor=to)
+    result.update(symbol=symbol, timeframe=period, inputs=inputs or {}, history_quality=result.get('History Quality:'))
     print(name, json.dumps(result), flush=True)
     return result
 
@@ -152,6 +154,51 @@ if __name__ == '__main__':
         results = {r: run('m4_' + r, 'HTFTrendBreakout', r, 'H1', {'InpSignalTF': 16388}, model=4, frm='2026.01.01', to='2026.09.08')
                    for r in ('EURUSD', 'USDJPY')}
         (OUT / 'm4-results.json').write_text(json.dumps(results, indent=2))
+        sys.exit()
+    if 'wf' in sys.argv:
+        symbols = ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'AUDNZD', 'GBPJPY')
+        grid = [(16385, 'h1'), (16388, 'h4')]
+        chan = (20, 40, 80)
+        IS_FROM, IS_TO = '2022.01.01', '2024.06.30'
+        OOS_FROM, OOS_TO = '2024.07.01', '2026.09.08'
+        is_table = {}
+        for symbol in symbols:
+            for tfnum, tfname in grid:
+                for c in chan:
+                    key = f'{tfname}-c{c}'
+                    name = f'wf_is_{symbol}_{key}'
+                    result = run(name, 'HTFTrendBreakout', symbol, 'H1',
+                                 {'InpSignalTF': tfnum, 'InpChannelBars': c},
+                                 model=1, frm=IS_FROM, to=IS_TO)
+                    is_table.setdefault(key, []).append({**result, 'symbol': symbol})
+        by_cfg = {}
+        for key, rows in is_table.items():
+            nets = [r['net_at_7_round_trip'] for r in rows]
+            by_cfg[key] = {'mean_net_comm7': round(sum(nets) / len(nets), 2),
+                           'any_negative': sum(1 for n in nets if n >= 0),
+                           'sum_net_comm7': round(sum(nets), 2)}
+        chosen = max(by_cfg, key=lambda k: by_cfg[k]['mean_net_comm7'])
+        tf_chosen = 16385 if chosen.startswith('h1') else 16388
+        c_chosen = int(chosen.split('-c')[1])
+        oos_table = {}
+        for symbol in symbols:
+            name = f'wf_oos_{symbol}'
+            oos_table[symbol] = run(name, 'HTFTrendBreakout', symbol, 'H1',
+                                    {'InpSignalTF': tf_chosen, 'InpChannelBars': c_chosen},
+                                    model=1, frm=OOS_FROM, to=OOS_TO)
+        (OUT / 'wf-results.json').write_text(json.dumps(
+            {'is_from': IS_FROM, 'is_to': IS_TO, 'oos_from': OOS_FROM, 'oos_to': OOS_TO,
+             'is_by_config': by_cfg, 'chosen_config': chosen,
+             'is_detail': {k: [{'s': r['symbol'], 'net7': r['net_at_7_round_trip'],
+                                'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                'hq': r['History Quality:']} for r in v]
+                           for k, v in is_table.items()},
+             'oos_after_commission': {s: {'net7': r['net_at_7_round_trip'], 'pf': r['Profit Factor:'],
+                                          'n': r['Total Trades:'], 'wr': r['Profit Trades (% of total):'],
+                                          'hq': r['History Quality:'], 'eqdd': r['Equity Drawdown Maximal:'],
+                                          'annual': r['annual_net']} for s, r in oos_table.items()}},
+            indent=2))
+        print('WF_CHOSEN', chosen)
         sys.exit()
     for args in cases:
         results[args[0]] = run(*args)
