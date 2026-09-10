@@ -74,19 +74,21 @@ def analyze(path, deposit=20000., anchor='2026.09.08'):
         top_10_winners=sum(sorted(outcomes, reverse=True)[:10]))
     return result
 
+def _compile(name):
+    log = TEMP / (name + '-corrected.log')
+    if log.exists(): log.unlink()
+    subprocess.run(['D:/Trading/MetaEditor64.exe', '/compile:' + str(ROOT / (name + '.mq5')), '/log:' + str(log)])
+    for _ in range(60):
+        if log.exists() and 'Result:' in text(log): break
+        time.sleep(1)
+    output = text(log)
+    print(output[output.index('Result:'):].strip(), flush=True)
+    assert '0 errors, 0 warnings' in output, output
+    shutil.copy2(ROOT / (name + '.ex5'), QA / ('MQL5/Experts/5MScalper/' + name + '.ex5'))
+
 def compile_all():
-    for suffix in ('', 'F', 'V'):
-        name = 'HTFTrendBreakout' + suffix
-        log = TEMP / (name + '-corrected.log')
-        if log.exists(): log.unlink()
-        subprocess.run(['D:/Trading/MetaEditor64.exe', '/compile:' + str(ROOT / (name + '.mq5')), '/log:' + str(log)])
-        for _ in range(60):
-            if log.exists() and 'Result:' in text(log): break
-            time.sleep(1)
-        output = text(log)
-        print(output[output.index('Result:'):].strip(), flush=True)
-        assert '0 errors, 0 warnings' in output, output
-        shutil.copy2(ROOT / (name + '.ex5'), QA / ('MQL5/Experts/5MScalper/' + name + '.ex5'))
+    for name in ('HTFTrendBreakout', 'HTFTrendBreakoutF', 'HTFTrendBreakoutV', 'IndexBreakout'):
+        _compile(name)
 
 def run(name, expert, symbol='EURUSD', period='H1', inputs=None, model=1, frm='2022.01.01', to='2026.09.08', deposit=20000.):
     preset = QA / ('MQL5/Profiles/Tester/' + name + '.set')
@@ -154,6 +156,82 @@ if __name__ == '__main__':
         results = {r: run('m4_' + r, 'HTFTrendBreakout', r, 'H1', {'InpSignalTF': 16388}, model=4, frm='2026.01.01', to='2026.09.08')
                    for r in ('EURUSD', 'USDJPY')}
         (OUT / 'm4-results.json').write_text(json.dumps(results, indent=2))
+        sys.exit()
+    if 'probe' in sys.argv:
+        for s in ('US30', 'US500', 'USTEC', 'JP225'):
+            try:
+                run('idx_probe_' + s, 'HTFTrendBreakout', s, 'H1', {'InpMaxEntryGapPips': 100000},
+                    model=1, frm='2022.01.01', to='2026.09.08')
+            except Exception as e:
+                print('PROBE_FAIL', s, repr(e), flush=True)
+        sys.exit()
+    if 'idx' in sys.argv:
+        symbols = ('US30', 'US500', 'USTEC', 'JP225')
+        chan = (20, 40, 80)
+        sess_on = {s: (14, 23) if s != 'JP225' else (0, 10) for s in symbols}
+        IS_FROM, IS_TO = '2022.01.01', '2024.06.30'
+        OOS_FROM, OOS_TO = '2024.07.01', '2026.09.08'
+        is_table = {}
+        for symbol in symbols:
+            for tfnum, tfname in ((16385, 'h1'), (16388, 'h4')):
+                for c in chan:
+                    for sess, sessv in (('off', (0, 0)), ('on', sess_on[symbol])):
+                        key = f'{tfname}-c{c}-sess{sess}'
+                        name = f'idx_is_{symbol}_{key}'
+                        result = run(name, 'IndexBreakout', symbol, 'H1',
+                                     {'InpSignalTF': tfnum, 'InpChannelBars': c,
+                                      'InpSessionStart': sessv[0], 'InpSessionEnd': sessv[1]},
+                                     model=1, frm=IS_FROM, to=IS_TO)
+                        is_table.setdefault(key, []).append({**result, 'symbol': symbol})
+        by_cfg = {}
+        for key, rows in is_table.items():
+            nets = [r['net_at_7_round_trip'] for r in rows]
+            by_cfg[key] = {'mean_net_comm7': round(sum(nets) / len(nets), 2),
+                           'sum_net_comm7': round(sum(nets), 2),
+                           'pos_symbols': sum(1 for n in nets if n >= 0)}
+        chosen = max(by_cfg, key=lambda k: (by_cfg[k]['mean_net_comm7'], by_cfg[k]['pos_symbols']))
+        tf_chosen = 16385 if chosen.startswith('h1') else 16388
+        c_chosen = int(chosen.split('-c')[1].split('-sess')[0])
+        sess_chosen = chosen.split('-sess')[1]
+        oos_table = {}
+        for symbol in symbols:
+            s = sess_on[symbol] if sess_chosen == 'on' else (0, 0)
+            name = f'idx_oos_{symbol}'
+            r = run(name, 'IndexBreakout', symbol, 'H1',
+                    {'InpSignalTF': tf_chosen, 'InpChannelBars': c_chosen,
+                     'InpSessionStart': s[0], 'InpSessionEnd': s[1]},
+                    model=1, frm=OOS_FROM, to=OOS_TO)
+            r['avg_lots_per_trade'] = round(r['entry_lots'] / max(r['Total Trades:'], 1), 3)
+            r['commission_per_trade'] = round(r['avg_lots_per_trade'] * 7, 2)
+            oos_table[symbol] = r
+        (OUT / 'idx-results.json').write_text(json.dumps(
+            {'is_from': IS_FROM, 'is_to': IS_TO, 'oos_from': OOS_FROM, 'oos_to': OOS_TO,
+             'session_windows_server_hours': sess_on, 'is_by_config': by_cfg, 'chosen_config': chosen,
+             'is_detail': {k: [{'s': r['symbol'], 'net7': r['net_at_7_round_trip'],
+                                'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                'avg_lots': round(r['entry_lots'] / max(r['Total Trades:'], 1), 3),
+                                'hq': r['History Quality:']} for r in v]
+                           for k, v in is_table.items()},
+             'oos_after_commission': {s: {k: r[k] for k in ('net', 'net_at_7_round_trip', 'Profit Factor:',
+                                                            'Total Trades:', 'Profit Trades (% of total):',
+                                                            'Expected Payoff:', 'Equity Drawdown Maximal:',
+                                                            'History Quality:', 'annual_net', 'avg_lots_per_trade',
+                                                            'commission_per_trade')}
+                                      for s, r in oos_table.items()}},
+            indent=2))
+        print('IDX_CHOSEN', chosen)
+        oos_sum = sum(r['net_at_7_round_trip'] for r in oos_table.values())
+        if oos_sum > 0:
+            print('OOS aggregate positive; running Model=4 real-tick cross-check')
+            m4 = {s: run('idx_m4_' + s, 'IndexBreakout', s, 'H1',
+                         {'InpSignalTF': tf_chosen, 'InpChannelBars': c_chosen,
+                          'InpSessionStart': (sess_on[s] if sess_chosen == 'on' else (0, 0))[0],
+                          'InpSessionEnd': (sess_on[s] if sess_chosen == 'on' else (0, 0))[1]},
+                         model=4, frm='2026.01.01', to='2026.09.08')
+                  for s in symbols}
+            (OUT / 'idx-m4-results.json').write_text(json.dumps(
+                {s: {k: r[k] for k in ('net', 'net_at_7_round_trip', 'Profit Factor:', 'Total Trades:',
+                                       'History Quality:')} for s, r in m4.items()}, indent=2))
         sys.exit()
     if 'wf' in sys.argv:
         symbols = ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'AUDNZD', 'GBPJPY')
