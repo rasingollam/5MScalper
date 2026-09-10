@@ -1,7 +1,7 @@
 #property copyright "HTFTrendBreakout"
-#property version "1.01"
+#property version "1.02"
 #property strict
-#property description "Frozen V1 baseline: H1 breakout of the previous InpChannelBars-range (excludes signal/forming bars), ATR(20) volatility, market entry on the first tick after the confirming close, no fixed TP, volatility trailing stop tightened only. One position per symbol, no pyramiding, no overnight liquidation, no reversal on opposite signal. Position size from initial-stop risk exactly like the account's risk model."
+#property description "Frozen V1 baseline: breakout of the previous InpChannelBars-range on InpSignalTF, ATR(20) vol, market entry first tick after confirming close, no TP, trailing stop. One position, no pyramiding. Size from initial-stop risk. v1.02: ATR computed manually from price history (iATR cannot create on un-materialized TFs at test start)."
 
 input group "Signal"
 input ENUM_TIMEFRAMES InpSignalTF=PERIOD_H1;
@@ -22,8 +22,7 @@ input int InpMaxRetries=5;
 #include <Trade/Trade.mqh>
 
 CTrade trade;
-int g_atr=INVALID_HANDLE;
-datetime g_lastBar=0,g_pendBar=0;
+datetime g_lastBar=0,g_pendBar=0,g_lastSigBar=0;
 bool g_pending=false,g_consumed=false,g_inPosition=false;
 int g_pendDir=0;
 double g_pendAtr=0,g_initSL=0,g_entryPrice=0;
@@ -36,17 +35,29 @@ double GetATR(datetime barTime)
 {
    int sh=iBarShift(_Symbol,InpSignalTF,barTime,false);
    if(sh<1) return 0;
-   double a[1];
-   if(CopyBuffer(g_atr,0,sh,1,a)!=1 || a[0]<=0) return 0;
-   return a[0];
+   MqlRates rates[];
+   if(CopyRates(_Symbol,InpSignalTF,sh,InpATRPeriod+1,rates)!=InpATRPeriod+1) return 0;
+   double sum=0;
+   for(int i=0;i<InpATRPeriod;i++)
+   {
+      double tr=MathMax(rates[i].high-rates[i].low,
+                        MathMax(MathAbs(rates[i].high-rates[i+1].close),
+                                MathAbs(rates[i].low-rates[i+1].close)));
+      sum+=tr;
+   }
+   return sum/InpATRPeriod;
 }
 void SignalStep()
 {
-// Called once when a new H1 bar closes. Bar 1 is the just closed signal bar;
-// channel uses bars 2..(1+InpChannelBars), ATR uses completed bars at shift 1.
+// Called once per new chart bar; processes only when a NEW closed signal bar
+// is present in the data (data-derived, so D1-free of iTime caching quirks).
    int need=1+InpChannelBars+1;
    MqlRates r[]; ArraySetAsSeries(r,true);
    if(CopyRates(_Symbol,InpSignalTF,1,need,r)!=need) return;
+   if(r[0].time==g_lastSigBar) return;
+   g_lastSigBar=r[0].time;
+   g_pending=false; // Expire the previous signal bar's unfilled setup.
+   g_consumed=false;
    double hi=r[1].high,lo=r[1].low;
    for(int j=2;j<=InpChannelBars;j++)
    {
@@ -245,9 +256,8 @@ int OnInit()
    trade.SetDeviationInPoints(InpDeviationPoints);
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetAsyncMode(false);
-   g_atr=iATR(_Symbol,InpSignalTF,InpATRPeriod);
-   if(g_atr==INVALID_HANDLE) return INIT_FAILED;
-   g_lastBar=iTime(_Symbol,InpSignalTF,1);
+   g_lastBar=iTime(_Symbol,_Period,1);
+   g_lastSigBar=iTime(_Symbol,InpSignalTF,1);
    if(!EventSetTimer(1)) return INIT_FAILED;
    g_inPosition=FindPosition();
    if(g_inPosition) g_initSL=PositionGetDouble(POSITION_SL);
@@ -260,18 +270,15 @@ void OnDeinit(const int reason)
    PrintFormat("HTF summary %s: signals=%d, entries=%d, closes=%d, trailMods=%d, rejects=%d, minlotBlocks=%d",
       _Symbol,g_signals,g_entries,g_closes,g_trailMods,g_rejects,g_minlotRejects);
    EventKillTimer(); Comment("");
-   if(g_atr!=INVALID_HANDLE) IndicatorRelease(g_atr);
-   g_atr=INVALID_HANDLE;
 }
 void OnTimer(){ ManageTrailing(); }
 void OnTick()
 {
    FindPosition(); // Refresh broker state before evaluating a new signal.
-   datetime bar=iTime(_Symbol,InpSignalTF,1);
-   if(bar!=g_lastBar)
+   datetime chartBar=iTime(_Symbol,_Period,1);
+   if(chartBar!=g_lastBar)
    {
-      g_lastBar=bar;
-      g_pending=false; // Expire the previous bar's unfilled setup.
+      g_lastBar=chartBar;
       SignalStep();
    }
 // Manage trailing before entry-only paths so management is never skipped.

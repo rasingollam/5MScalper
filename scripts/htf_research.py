@@ -309,6 +309,60 @@ if __name__ == '__main__':
             indent=2))
         print('WF_CHOSEN', chosen)
         sys.exit()
+    if 'd1' in sys.argv:
+        symbols = ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'AUDNZD', 'GBPJPY')
+        chan = (10, 20, 40)
+        IS_FROM, IS_TO = '2022.01.01', '2024.06.30'
+        OOS_FROM, OOS_TO = '2024.07.01', '2026.09.08'
+        is_table = {}
+        for symbol in symbols:
+            for c in chan:
+                key = f'd1-c{c}'
+                name = f'd1_is_{symbol}_{key}'
+                result = run(name, 'HTFTrendBreakout', symbol, 'H1',
+                             {'InpSignalTF': 16384, 'InpChannelBars': c},
+                             model=1, frm=IS_FROM, to=IS_TO)
+                is_table.setdefault(key, []).append({**result, 'symbol': symbol})
+        by_cfg = {}
+        for key, rows in is_table.items():
+            nets = [r['net_at_7_round_trip'] for r in rows]
+            by_cfg[key] = {'mean_net_comm7': round(sum(nets) / len(nets), 2),
+                           'sum_net_comm7': round(sum(nets), 2),
+                           'pos_symbols': sum(1 for n in nets if n >= 0)}
+        chosen = max(by_cfg, key=lambda k: by_cfg[k]['mean_net_comm7'])
+        c_chosen = int(chosen.split('-c')[1])
+        oos_table = {}
+        for symbol in symbols:
+            name = f'd1_oos_{symbol}'
+            oos_table[symbol] = run(name, 'HTFTrendBreakout', symbol, 'H1',
+                                    {'InpSignalTF': 16384, 'InpChannelBars': c_chosen},
+                                    model=1, frm=OOS_FROM, to=OOS_TO)
+        (OUT / 'd1-results.json').write_text(json.dumps(
+            {'is_from': IS_FROM, 'is_to': IS_TO, 'oos_from': OOS_FROM, 'oos_to': OOS_TO,
+             'is_by_config': by_cfg, 'chosen_config': chosen,
+             'is_detail': {k: [{'s': r['symbol'], 'net7': r['net_at_7_round_trip'],
+                                'swap': r['swap'], 'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                'hq': r['History Quality:']} for r in v]
+                           for k, v in is_table.items()},
+             'oos_after_commission': {s: {'net7': r['net_at_7_round_trip'], 'net': r['net'],
+                                          'swap': r['swap'], 'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                          'wr': r['Profit Trades (% of total):'], 'hq': r['History Quality:'],
+                                          'eqdd': r['Equity Drawdown Maximal:'], 'annual': r['annual_net']}
+                                      for s, r in oos_table.items()}},
+            indent=2))
+        print('D1_CHOSEN', chosen)
+        oos_sum = sum(r['net_at_7_round_trip'] for r in oos_table.values())
+        print('D1_OOS_SUM_NET7', round(oos_sum, 2), 'GROSS', round(sum(r['net'] for r in oos_table.values()), 2),
+              'SWAP', round(sum(r['swap'] for r in oos_table.values()), 2))
+        if oos_sum > 0:
+            print('OOS aggregate positive; running Model=4 real-tick cross-check')
+            m4 = {s: run(f'd1_m4_{s}', 'HTFTTrendBreakout', s, 'H1',
+                         {'InpSignalTF': 16384, 'InpChannelBars': c_chosen},
+                         model=4, frm='2026.01.01', to='2026.09.08') for s in symbols}
+            (OUT / 'd1-m4-results.json').write_text(json.dumps(
+                {s: {k: r[k] for k in ('net', 'net_at_7_round_trip', 'swap', 'Profit Factor:',
+                                       'Total Trades:', 'History Quality:')} for s, r in m4.items()}, indent=2))
+        sys.exit()
     if 'carry' in sys.argv:
         symbols = ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'AUDNZD', 'GBPJPY', 'JP225')
         dirs = json.loads((OUT / 'carry-directions.json').read_text())

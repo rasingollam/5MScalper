@@ -119,6 +119,21 @@ gross; the zero-swap JP225 edge is destroyed by its commission drag (370 lots;
 negative, so no Model=4 step. Artifacts: `carry-results.json`,
 `carry-directions.json`, `CarryBreakout.mq5`.
 
+## D1 cell (2026-09-10)
+Attempted a D1 channel-breakout walk-forward (D1 signal TF x chan{10,20,40} x 7 FX,
+same IS/OOS protocol). The cell CANNOT be executed in this environment: MT5
+Model=1 never materializes the daily series for these symbols/windows
+(CopyRates(D1) returns -1 all year; iATR(D1) cannot init at test start; the base
+holds 0 bytes of offline FX history), and Model=2 real-tick data exists only for
+2026. The rig was hardened anyway (v1.02: ATR computed manually from price
+history; signal gating now chart-bar-based with a data-derived closed-bar guard).
+Both changes are behavior-neutral for H1/H4 - the H1 baseline reproduces
+identical numbers (367 trades, net7 -970.46). No D1 result is claimed; the cell
+is bounded by infrastructure, not by trading. Note also that even if D1 ran, the
+economics already cap it: all-negative swap costs MORE on longer holds, and D1
+2.5xATR stops (200-300 pips) cannot be sized at 0.25% risk without subsplitting
+below min lot.
+
 ## Verdict
 None of the tested implementations yields a positive, stable, cost-aware
 expectancy. The framework (single-market/small-group rate curve breakouts with
