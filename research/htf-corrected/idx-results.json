@@ -1,0 +1,567 @@
+{
+  "is_from": "2022.01.01",
+  "is_to": "2024.06.30",
+  "oos_from": "2024.07.01",
+  "oos_to": "2026.09.08",
+  "session_windows_server_hours": {
+    "US30": [
+      14,
+      23
+    ],
+    "US500": [
+      14,
+      23
+    ],
+    "USTEC": [
+      14,
+      23
+    ],
+    "JP225": [
+      0,
+      10
+    ]
+  },
+  "is_by_config": {
+    "h1-c20-sessoff": {
+      "mean_net_comm7": -7378.71,
+      "sum_net_comm7": -29514.83,
+      "pos_symbols": 0
+    },
+    "h1-c20-sesson": {
+      "mean_net_comm7": -4736.99,
+      "sum_net_comm7": -18947.95,
+      "pos_symbols": 1
+    },
+    "h1-c40-sessoff": {
+      "mean_net_comm7": -5080.18,
+      "sum_net_comm7": -20320.7,
+      "pos_symbols": 0
+    },
+    "h1-c40-sesson": {
+      "mean_net_comm7": -3453.35,
+      "sum_net_comm7": -13813.41,
+      "pos_symbols": 1
+    },
+    "h1-c80-sessoff": {
+      "mean_net_comm7": -3798.72,
+      "sum_net_comm7": -15194.88,
+      "pos_symbols": 0
+    },
+    "h1-c80-sesson": {
+      "mean_net_comm7": -2665.26,
+      "sum_net_comm7": -10661.06,
+      "pos_symbols": 1
+    },
+    "h4-c20-sessoff": {
+      "mean_net_comm7": -1846.81,
+      "sum_net_comm7": -7387.23,
+      "pos_symbols": 0
+    },
+    "h4-c20-sesson": {
+      "mean_net_comm7": -1442.04,
+      "sum_net_comm7": -5768.16,
+      "pos_symbols": 1
+    },
+    "h4-c40-sessoff": {
+      "mean_net_comm7": -1322.83,
+      "sum_net_comm7": -5291.33,
+      "pos_symbols": 0
+    },
+    "h4-c40-sesson": {
+      "mean_net_comm7": -1100.17,
+      "sum_net_comm7": -4400.67,
+      "pos_symbols": 0
+    },
+    "h4-c80-sessoff": {
+      "mean_net_comm7": -826.48,
+      "sum_net_comm7": -3305.93,
+      "pos_symbols": 2
+    },
+    "h4-c80-sesson": {
+      "mean_net_comm7": -731.0,
+      "sum_net_comm7": -2923.99,
+      "pos_symbols": 0
+    }
+  },
+  "chosen_config": "h4-c80-sesson",
+  "is_detail": {
+    "h1-c20-sessoff": [
+      {
+        "s": "US30",
+        "net7": -1735.33,
+        "pf": "0.93",
+        "n": "534",
+        "avg_lots": 0.265,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -6173.44,
+        "pf": "0.95",
+        "n": "538",
+        "avg_lots": 1.514,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -2182.29,
+        "pf": "0.95",
+        "n": "558",
+        "avg_lots": 0.425,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -19423.77,
+        "pf": "1.07",
+        "n": "488",
+        "avg_lots": 5.726,
+        "hq": "98%"
+      }
+    ],
+    "h1-c20-sesson": [
+      {
+        "s": "US30",
+        "net7": -726.73,
+        "pf": "1.00",
+        "n": "387",
+        "avg_lots": 0.27,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -3789.91,
+        "pf": "1.08",
+        "n": "397",
+        "avg_lots": 1.556,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": 86.58,
+        "pf": "1.17",
+        "n": "402",
+        "avg_lots": 0.438,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -14517.89,
+        "pf": "1.00",
+        "n": "363",
+        "avg_lots": 5.711,
+        "hq": "98%"
+      }
+    ],
+    "h1-c40-sessoff": [
+      {
+        "s": "US30",
+        "net7": -1152.01,
+        "pf": "0.95",
+        "n": "387",
+        "avg_lots": 0.262,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -4138.41,
+        "pf": "1.01",
+        "n": "391",
+        "avg_lots": 1.53,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -874.84,
+        "pf": "1.04",
+        "n": "394",
+        "avg_lots": 0.429,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -14155.44,
+        "pf": "1.05",
+        "n": "355",
+        "avg_lots": 5.723,
+        "hq": "98%"
+      }
+    ],
+    "h1-c40-sesson": [
+      {
+        "s": "US30",
+        "net7": -502.13,
+        "pf": "1.00",
+        "n": "281",
+        "avg_lots": 0.267,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -2763.22,
+        "pf": "1.09",
+        "n": "296",
+        "avg_lots": 1.54,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": 156.69,
+        "pf": "1.20",
+        "n": "287",
+        "avg_lots": 0.433,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -10704.75,
+        "pf": "0.98",
+        "n": "268",
+        "avg_lots": 5.692,
+        "hq": "98%"
+      }
+    ],
+    "h1-c80-sessoff": [
+      {
+        "s": "US30",
+        "net7": -337.09,
+        "pf": "1.03",
+        "n": "259",
+        "avg_lots": 0.261,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -3629.38,
+        "pf": "0.85",
+        "n": "282",
+        "avg_lots": 1.456,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -1537.29,
+        "pf": "0.88",
+        "n": "290",
+        "avg_lots": 0.402,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -9691.12,
+        "pf": "0.96",
+        "n": "242",
+        "avg_lots": 5.695,
+        "hq": "98%"
+      }
+    ],
+    "h1-c80-sesson": [
+      {
+        "s": "US30",
+        "net7": 76.89,
+        "pf": "1.12",
+        "n": "183",
+        "avg_lots": 0.272,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -2196.29,
+        "pf": "0.97",
+        "n": "202",
+        "avg_lots": 1.489,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -846.15,
+        "pf": "0.95",
+        "n": "212",
+        "avg_lots": 0.416,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -7695.51,
+        "pf": "0.93",
+        "n": "191",
+        "avg_lots": 5.711,
+        "hq": "98%"
+      }
+    ],
+    "h4-c20-sessoff": [
+      {
+        "s": "US30",
+        "net7": -22.7,
+        "pf": "1.04",
+        "n": "135",
+        "avg_lots": 0.124,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -1381.69,
+        "pf": "0.79",
+        "n": "149",
+        "avg_lots": 0.788,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -680.12,
+        "pf": "0.85",
+        "n": "151",
+        "avg_lots": 0.196,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -5302.72,
+        "pf": "0.69",
+        "n": "148",
+        "avg_lots": 4.767,
+        "hq": "98%"
+      }
+    ],
+    "h4-c20-sesson": [
+      {
+        "s": "US30",
+        "net7": 95.58,
+        "pf": "1.10",
+        "n": "95",
+        "avg_lots": 0.12,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -1201.3,
+        "pf": "0.70",
+        "n": "110",
+        "avg_lots": 0.755,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -343.75,
+        "pf": "0.88",
+        "n": "98",
+        "avg_lots": 0.189,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -4318.69,
+        "pf": "0.67",
+        "n": "120",
+        "avg_lots": 4.77,
+        "hq": "98%"
+      }
+    ],
+    "h4-c40-sessoff": [
+      {
+        "s": "US30",
+        "net7": -362.4,
+        "pf": "0.87",
+        "n": "104",
+        "avg_lots": 0.119,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -862.11,
+        "pf": "0.84",
+        "n": "104",
+        "avg_lots": 0.8,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -116.94,
+        "pf": "1.01",
+        "n": "101",
+        "avg_lots": 0.198,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -3949.88,
+        "pf": "0.56",
+        "n": "108",
+        "avg_lots": 4.721,
+        "hq": "98%"
+      }
+    ],
+    "h4-c40-sesson": [
+      {
+        "s": "US30",
+        "net7": -277.9,
+        "pf": "0.84",
+        "n": "75",
+        "avg_lots": 0.117,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -1034.61,
+        "pf": "0.64",
+        "n": "86",
+        "avg_lots": 0.761,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -114.97,
+        "pf": "0.99",
+        "n": "76",
+        "avg_lots": 0.187,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -2973.19,
+        "pf": "0.65",
+        "n": "83",
+        "avg_lots": 4.732,
+        "hq": "98%"
+      }
+    ],
+    "h4-c80-sessoff": [
+      {
+        "s": "US30",
+        "net7": 41.49,
+        "pf": "1.08",
+        "n": "70",
+        "avg_lots": 0.118,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -669.32,
+        "pf": "0.83",
+        "n": "77",
+        "avg_lots": 0.818,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": 8.86,
+        "pf": "1.08",
+        "n": "71",
+        "avg_lots": 0.196,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -2686.96,
+        "pf": "0.55",
+        "n": "73",
+        "avg_lots": 4.734,
+        "hq": "98%"
+      }
+    ],
+    "h4-c80-sesson": [
+      {
+        "s": "US30",
+        "net7": -66.77,
+        "pf": "0.98",
+        "n": "55",
+        "avg_lots": 0.118,
+        "hq": "98%"
+      },
+      {
+        "s": "US500",
+        "net7": -739.88,
+        "pf": "0.68",
+        "n": "65",
+        "avg_lots": 0.774,
+        "hq": "98%"
+      },
+      {
+        "s": "USTEC",
+        "net7": -96.2,
+        "pf": "0.97",
+        "n": "53",
+        "avg_lots": 0.193,
+        "hq": "98%"
+      },
+      {
+        "s": "JP225",
+        "net7": -2021.14,
+        "pf": "0.66",
+        "n": "56",
+        "avg_lots": 4.77,
+        "hq": "98%"
+      }
+    ]
+  },
+  "oos_after_commission": {
+    "US30": {
+      "net": -187.44,
+      "net_at_7_round_trip": -210.82,
+      "Profit Factor:": "0.77",
+      "Total Trades:": "36",
+      "Profit Trades (% of total):": "12 (33.33%)",
+      "Expected Payoff:": "-5.21",
+      "Equity Drawdown Maximal:": "551.43 (2.71%)",
+      "History Quality:": "100%",
+      "annual_net": {
+        "2024": 260.27,
+        "2025": -233.04,
+        "2026": -214.67
+      },
+      "avg_lots_per_trade": 0.093,
+      "commission_per_trade": 0.65
+    },
+    "US500": {
+      "net": -359.3,
+      "net_at_7_round_trip": -587.5,
+      "Profit Factor:": "0.66",
+      "Total Trades:": "50",
+      "Profit Trades (% of total):": "17 (34.00%)",
+      "Expected Payoff:": "-7.19",
+      "Equity Drawdown Maximal:": "634.59 (3.13%)",
+      "History Quality:": "100%",
+      "annual_net": {
+        "2024": 76.31,
+        "2025": -168.07,
+        "2026": -267.54
+      },
+      "avg_lots_per_trade": 0.652,
+      "commission_per_trade": 4.56
+    },
+    "USTEC": {
+      "net": -106.01,
+      "net_at_7_round_trip": -150.11,
+      "Profit Factor:": "0.88",
+      "Total Trades:": "46",
+      "Profit Trades (% of total):": "16 (34.78%)",
+      "Expected Payoff:": "-2.30",
+      "Equity Drawdown Maximal:": "344.07 (1.70%)",
+      "History Quality:": "100%",
+      "annual_net": {
+        "2024": 65.44,
+        "2025": 2.76,
+        "2026": -174.21
+      },
+      "avg_lots_per_trade": 0.137,
+      "commission_per_trade": 0.96
+    },
+    "JP225": {
+      "net": 46.54,
+      "net_at_7_round_trip": -1048.05,
+      "Profit Factor:": "1.13",
+      "Total Trades:": "39",
+      "Profit Trades (% of total):": "16 (41.03%)",
+      "Expected Payoff:": "1.19",
+      "Equity Drawdown Maximal:": "177.78 (0.88%)",
+      "History Quality:": "99%",
+      "annual_net": {
+        "2024": 108.12,
+        "2025": -46.89,
+        "2026": -14.69
+      },
+      "avg_lots_per_trade": 4.009,
+      "commission_per_trade": 28.06
+    }
+  }
+}

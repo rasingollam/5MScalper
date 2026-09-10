@@ -1,0 +1,130 @@
+{
+  "h4_EURUSD": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-1 124.91",
+    "Profit Factor:": "0.68",
+    "Total Trades:": "185",
+    "Profit Trades (% of total):": "64 (34.59%)",
+    "Average profit trade:": "37.25",
+    "Average loss trade:": "-29.00",
+    "Expected Payoff:": "-6.08",
+    "Equity Drawdown Maximal:": "1 309.48 (6.49%)",
+    "Balance Drawdown Maximal:": "1 258.52 (6.25%)",
+    "net": -1124.91,
+    "entry_lots": 12.56,
+    "commission": 0.0,
+    "swap": -116.44,
+    "net_at_7_round_trip": -1212.83,
+    "annual_net": {
+      "2022": -54.92,
+      "2023": -199.74,
+      "2024": -580.27,
+      "2025": -18.56,
+      "2026": -271.42
+    },
+    "longest_balance_underwater_days": 1511.7,
+    "top_10_winners": 977.23,
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  },
+  "h4_GBPUSD": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-690.15",
+    "Profit Factor:": "0.80",
+    "Total Trades:": "188",
+    "Profit Trades (% of total):": "60 (31.91%)",
+    "Average profit trade:": "47.27",
+    "Average loss trade:": "-27.55",
+    "Expected Payoff:": "-3.67",
+    "Equity Drawdown Maximal:": "1 094.99 (5.39%)",
+    "Balance Drawdown Maximal:": "981.66 (4.86%)",
+    "net": -690.15,
+    "entry_lots": 9.63,
+    "commission": 0.0,
+    "swap": -48.63,
+    "net_at_7_round_trip": -757.56,
+    "annual_net": {
+      "2022": 104.49,
+      "2023": -520.49,
+      "2024": -185.44,
+      "2025": -17.4,
+      "2026": -71.31
+    },
+    "longest_balance_underwater_days": 1435.0,
+    "top_10_winners": 1261.79,
+    "symbol": "GBPUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  },
+  "h4_USDJPY": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "637.94",
+    "Profit Factor:": "1.17",
+    "Total Trades:": "190",
+    "Profit Trades (% of total):": "73 (38.42%)",
+    "Average profit trade:": "60.00",
+    "Average loss trade:": "-31.99",
+    "Expected Payoff:": "3.36",
+    "Equity Drawdown Maximal:": "1 077.49 (5.02%)",
+    "Balance Drawdown Maximal:": "991.20 (4.64%)",
+    "net": 637.94,
+    "entry_lots": 13.07,
+    "commission": 0.0,
+    "swap": -112.65,
+    "net_at_7_round_trip": 546.45,
+    "annual_net": {
+      "2022": 1178.67,
+      "2023": -202.45,
+      "2024": 240.34,
+      "2025": -448.32,
+      "2026": -130.3
+    },
+    "longest_balance_underwater_days": 1111.3,
+    "top_10_winners": 2168.31,
+    "symbol": "USDJPY",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  },
+  "h4_AUDUSD": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-1 424.77",
+    "Profit Factor:": "0.62",
+    "Total Trades:": "198",
+    "Profit Trades (% of total):": "62 (31.31%)",
+    "Average profit trade:": "37.80",
+    "Average loss trade:": "-27.71",
+    "Expected Payoff:": "-7.20",
+    "Equity Drawdown Maximal:": "1 634.16 (8.15%)",
+    "Balance Drawdown Maximal:": "1 579.68 (7.90%)",
+    "net": -1424.77,
+    "entry_lots": 14.61,
+    "commission": 0.0,
+    "swap": -40.49,
+    "net_at_7_round_trip": -1527.04,
+    "annual_net": {
+      "2022": -452.02,
+      "2023": -327.36,
+      "2024": -353.98,
+      "2025": -382.94,
+      "2026": 91.53
+    },
+    "longest_balance_underwater_days": 1708.3,
+    "top_10_winners": 1085.28,
+    "symbol": "AUDUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  }
+}

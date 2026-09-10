@@ -1,0 +1,46 @@
+{
+  "AUDNZD": {
+    "buy": -5.87,
+    "sell": 0.0
+  },
+  "AUDUSD": {
+    "buy": -2.68,
+    "sell": 0.0
+  },
+  "EURUSD": {
+    "buy": 0.0,
+    "sell": -5.57
+  },
+  "GBPJPY": {
+    "buy": -13.07,
+    "sell": 0.0
+  },
+  "GBPUSD": {
+    "buy": -1.78,
+    "sell": -1.91
+  },
+  "JP225": {
+    "buy": 0.0,
+    "sell": 0.0
+  },
+  "NZDUSD": {
+    "buy": 0.0,
+    "sell": -4.67
+  },
+  "US30": {
+    "buy": 0.0,
+    "sell": -12.22
+  },
+  "US500": {
+    "buy": 0.0,
+    "sell": -2.03
+  },
+  "USDJPY": {
+    "buy": -10.54,
+    "sell": 0.0
+  },
+  "USTEC": {
+    "buy": 0.0,
+    "sell": -7.29
+  }
+}
