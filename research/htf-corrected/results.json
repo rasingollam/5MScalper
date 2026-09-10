@@ -29,7 +29,8 @@
     "timeframe": "H1",
     "inputs": {
       "InpSignalTF": 16385
-    }
+    },
+    "history_quality": "100%"
   },
   "corrected_close": {
     "Period:": "H1 (2022.01.01 - 2026.09.08)",
@@ -61,7 +62,8 @@
     "timeframe": "H1",
     "inputs": {
       "InpRejectStrength": 0.6667
-    }
+    },
+    "history_quality": "100%"
   },
   "corrected_veto": {
     "Period:": "H1 (2022.01.01 - 2026.09.08)",
@@ -93,6 +95,7 @@
     "timeframe": "H1",
     "inputs": {
       "InpVetoADX": 25
-    }
+    },
+    "history_quality": "100%"
   }
 }

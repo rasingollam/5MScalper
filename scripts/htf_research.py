@@ -87,7 +87,7 @@ def _compile(name):
     shutil.copy2(ROOT / (name + '.ex5'), QA / ('MQL5/Experts/5MScalper/' + name + '.ex5'))
 
 def compile_all():
-    for name in ('HTFTrendBreakout', 'HTFTrendBreakoutF', 'HTFTrendBreakoutV', 'IndexBreakout'):
+    for name in ('HTFTrendBreakout', 'HTFTrendBreakoutF', 'HTFTrendBreakoutV', 'IndexBreakout', 'CarryBreakout'):
         _compile(name)
 
 def run(name, expert, symbol='EURUSD', period='H1', inputs=None, model=1, frm='2022.01.01', to='2026.09.08', deposit=20000.):
@@ -165,6 +165,28 @@ if __name__ == '__main__':
         results = {r: run('m4_' + r, 'HTFTrendBreakout', r, 'H1', {'InpSignalTF': 16388}, model=4, frm='2026.01.01', to='2026.09.08')
                    for r in ('EURUSD', 'USDJPY')}
         (OUT / 'm4-results.json').write_text(json.dumps(results, indent=2))
+        sys.exit()
+    if 'swap' in sys.argv:
+        agg = {}
+        for p in OUT.glob('*.htm'):
+            raw = text(p)
+            sym = re.search(r'Symbol=([^<\n]+)', raw) or next(iter(re.findall(r'<b>Symbol</b></td>\s*<td[^>]*><b>(.*?)</b>', raw)), ['?'])[0] if False else None
+            rows = re.findall(r'<tr\b[^>]*>(.*?)</tr>', raw.split('<b>Deals</b>')[1], re.S)
+            for row in rows:
+                c = [html.unescape(re.sub('<[^>]+>', '', x)).strip() for x in re.findall(r'<td\b[^>]*>(.*?)</td>', row, re.S)]
+                if len(c) == 13 and c[4] == 'out' and c[3] in ('buy', 'sell') and c[2]:
+                    a = agg.setdefault(c[2], {'buy': [0., 0.], 'sell': [0., 0.]})
+                    a[c[3]][0] += float(c[9].replace(' ', '').replace('\xa0', ''))
+                    a[c[3]][1] += float(c[5].replace(' ', '').replace('\xa0', ''))
+        out = {}
+        for sym, sides in sorted(agg.items()):
+            per = {}
+            for side, (sw, vol) in sides.items():
+                per[side] = round(sw / vol, 2) if vol > 0 else 0.
+            out[sym] = per
+        (OUT / 'carry-directions.json').write_text(json.dumps(out, indent=2))
+        for sym, per in out.items():
+            print(sym, 'long_swap_per_lot:', per.get('buy'), 'short_swap_per_lot:', per.get('sell'))
         sys.exit()
     if 'probe' in sys.argv:
         for s in ('US30', 'US500', 'USTEC', 'JP225'):
@@ -286,6 +308,71 @@ if __name__ == '__main__':
                                           'annual': r['annual_net']} for s, r in oos_table.items()}},
             indent=2))
         print('WF_CHOSEN', chosen)
+        sys.exit()
+    if 'carry' in sys.argv:
+        symbols = ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'AUDNZD', 'GBPJPY', 'JP225')
+        dirs = json.loads((OUT / 'carry-directions.json').read_text())
+
+        def carry_side(sym):
+            per = dirs.get(sym, {})
+            b, s = per.get('buy', 0.), per.get('sell', 0.)
+            return 1 if b > s else (-1 if s > b else 0)
+        side_map = {s: carry_side(s) for s in symbols}
+        IS_FROM, IS_TO = '2022.01.01', '2024.06.30'
+        OOS_FROM, OOS_TO = '2024.07.01', '2026.09.08'
+        is_table = {}
+        for symbol in symbols:
+            for ema in (50, 200):
+                for bias in ('both', 'carry'):
+                    key = f'ema{ema}-b{bias}'
+                    name = f'carry_is_{symbol}_{key}'
+                    result = run(name, 'CarryBreakout', symbol, 'H1',
+                                 {'InpTrendEma': ema, 'InpSideBias': 0 if bias == 'both' else side_map[symbol]},
+                                 model=1, frm=IS_FROM, to=IS_TO)
+                    is_table.setdefault(key, []).append({**result, 'symbol': symbol})
+        by_cfg = {}
+        for key, rows in is_table.items():
+            nets = [r['net_at_7_round_trip'] for r in rows]
+            by_cfg[key] = {'mean_net_comm7': round(sum(nets) / len(nets), 2),
+                           'sum_net_comm7': round(sum(nets), 2),
+                           'pos_symbols': sum(1 for n in nets if n >= 0),
+                           'sum_swap': round(sum(r['swap'] for r in rows), 2)}
+        chosen = max(by_cfg, key=lambda k: (by_cfg[k]['mean_net_comm7'], by_cfg[k]['pos_symbols']))
+        ema_chosen = int(chosen.split('ema')[1].split('-b')[0])
+        oos_table = {}
+        for symbol in symbols:
+            bias = 0 if chosen.endswith('both') else side_map[symbol]
+            oos_table[symbol] = run(f'carry_oos_{symbol}', 'CarryBreakout', symbol, 'H1',
+                                    {'InpTrendEma': ema_chosen, 'InpSideBias': bias},
+                                    model=1, frm=OOS_FROM, to=OOS_TO)
+        (OUT / 'carry-results.json').write_text(json.dumps(
+            {'is_from': IS_FROM, 'is_to': IS_TO, 'oos_from': OOS_FROM, 'oos_to': OOS_TO,
+             'carry_side_per_symbol': side_map,
+             'swap_per_lot_measured': dirs,
+             'is_by_config': by_cfg, 'chosen_config': chosen,
+             'is_detail': {k: [{'s': r['symbol'], 'net7': r['net_at_7_round_trip'],
+                                'swap': r['swap'], 'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                'hq': r['History Quality:']} for r in v]
+                           for k, v in is_table.items()},
+             'oos_after_commission': {s: {'net7': r['net_at_7_round_trip'], 'net': r['net'],
+                                          'swap': r['swap'], 'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
+                                          'wr': r['Profit Trades (% of total):'], 'hq': r['History Quality:'],
+                                          'eqdd': r['Equity Drawdown Maximal:'], 'annual': r['annual_net']}
+                                      for s, r in oos_table.items()}},
+            indent=2))
+        print('CARRY_CHOSEN', chosen)
+        oos_sum = sum(r['net_at_7_round_trip'] for r in oos_table.values())
+        oos_swap = sum(r['swap'] for r in oos_table.values())
+        oos_gross = sum(r['net'] for r in oos_table.values())
+        print('CARRY_OOS_SUM_NET7', round(oos_sum, 2), 'GROSS', round(oos_gross, 2), 'SWAP', round(oos_swap, 2))
+        if oos_sum > 0:
+            print('OOS aggregate positive; running Model=4 real-tick cross-check')
+            m4 = {s: run(f'carry_m4_{s}', 'CarryBreakout', s, 'H1',
+                         {'InpTrendEma': ema_chosen, 'InpSideBias': 0 if chosen.endswith('both') else side_map[s]},
+                         model=4, frm='2026.01.01', to='2026.09.08') for s in symbols}
+            (OUT / 'carry-m4-results.json').write_text(json.dumps(
+                {s: {k: r[k] for k in ('net', 'net_at_7_round_trip', 'swap', 'Profit Factor:',
+                                       'Total Trades:', 'History Quality:')} for s, r in m4.items()}, indent=2))
         sys.exit()
     for args in cases:
         results[args[0]] = run(*args)

@@ -97,6 +97,28 @@ gross is negative for 3/4 even before commission. As for FX, the IS heroes are
 period-bound (USTEC H1 extra-positive 2022 only), and JP225 is structurally
 commission-unviable at this sizing regardless of direction.
 
+## Carry/momentum line (CarryBreakout, 2026-09-10)
+Premise: earn funding by bias toward high-yield side while trend-following; the
+swap half is a pure measurement and it fails first. Per-direction swap measured
+from broker deal data (`swap` mode -> `carry-directions.json`): every side is
+zero-to-negative; there is NO positive carry on any symbol (worst: GBPJPY long
+-13.07/lot, USDJPY long -10.54, US30 short -12.22; only JP225 is 0 both
+sides). So the engine reduces to side-bias toward the least-negative side vs
+both-sides control.
+
+Grid (IS 2022.01.01-2024.06.30): H4 EMA{50,200} x bias{least-negative, both} x
+8 symbols (7 FX + JP225), reference-ATR sizing, no SL/TP, exit on trend flip,
+headline net after swap+commission. IS means (net7/symbol): ema200-bboth -1323,
+ema200-bcarry -1454, ema50-bcarry -2067, ema50-bboth -2089; carry bias made it
+WORSE in both EMA variants and never beat the both-sides control.
+
+OOS (2024.07.01-2026.09.08, chosen ema200-bboth): net -1380, swap -916,
+commission -3166 -> net7 -4546. Only GBPUSD (+338) and JP225 (+324) positive
+gross; the zero-swap JP225 edge is destroyed by its commission drag (370 lots;
+-2594 comm delta) exactly as predicted by lot-size structure. OOS aggregate
+negative, so no Model=4 step. Artifacts: `carry-results.json`,
+`carry-directions.json`, `CarryBreakout.mq5`.
+
 ## Verdict
 None of the tested implementations yields a positive, stable, cost-aware
 expectancy. The framework (single-market/small-group rate curve breakouts with
@@ -108,7 +130,11 @@ config was aggregate-positive in-sample, and the globally best config still
 lost 1 172 USD out-of-sample. The index line (4 indices, same corrected rig with
 ATR-relative gap guard and session gate) fails on the same walk-forward basis:
 no config aggregate-positive in-sample and chosen config -1 996 USD out-of-sample,
-with structural commission drag documented per symbol. Data and scripts used:
+with structural commission drag documented per symbol. The carry/momentum line
+fails one layer deeper: the broker's per-direction swaps are uniformly
+non-positive, so there is no funding to harvest at all, and trend-following
+with any side preference still lost -4 546 USD net of commission
+out-of-sample. Data and scripts used:
 `scripts/htf_research.py`, `research/htf-corrected/*.json`.
 
 Default disposition: do NOT trade this line on this $200 account (fractional
