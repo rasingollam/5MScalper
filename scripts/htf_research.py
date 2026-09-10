@@ -91,6 +91,15 @@ def compile_all():
         _compile(name)
 
 def run(name, expert, symbol='EURUSD', period='H1', inputs=None, model=1, frm='2022.01.01', to='2026.09.08', deposit=20000.):
+    for p in sorted(OUT.glob(name + '*.htm')):
+        raw = text(p)
+        if all((lambda m: m is not None and float(m[1]) == float(value))(re.search(re.escape(k) + r'=([^<]+)', raw))
+               for k, value in (inputs or {}).items()):
+            r = analyze(p, deposit=deposit, anchor=to)
+            r.update(symbol=symbol, timeframe=period, inputs=inputs or {},
+                     history_quality=r.get('History Quality:'))
+            print(name, '(cached)', json.dumps(r), flush=True)
+            return r
     preset = QA / ('MQL5/Profiles/Tester/' + name + '.set')
     preset.write_text('\n'.join(f'{k}={v}' for k, v in (inputs or {}).items()), encoding='ascii')
     config = TEMP / (name + '.ini')
@@ -201,7 +210,7 @@ if __name__ == '__main__':
                     {'InpSignalTF': tf_chosen, 'InpChannelBars': c_chosen,
                      'InpSessionStart': s[0], 'InpSessionEnd': s[1]},
                     model=1, frm=OOS_FROM, to=OOS_TO)
-            r['avg_lots_per_trade'] = round(r['entry_lots'] / max(r['Total Trades:'], 1), 3)
+            r['avg_lots_per_trade'] = round(r['entry_lots'] / max(int(r['Total Trades:']), 1), 3)
             r['commission_per_trade'] = round(r['avg_lots_per_trade'] * 7, 2)
             oos_table[symbol] = r
         (OUT / 'idx-results.json').write_text(json.dumps(
@@ -209,7 +218,7 @@ if __name__ == '__main__':
              'session_windows_server_hours': sess_on, 'is_by_config': by_cfg, 'chosen_config': chosen,
              'is_detail': {k: [{'s': r['symbol'], 'net7': r['net_at_7_round_trip'],
                                 'pf': r['Profit Factor:'], 'n': r['Total Trades:'],
-                                'avg_lots': round(r['entry_lots'] / max(r['Total Trades:'], 1), 3),
+                                'avg_lots': round(r['entry_lots'] / max(int(r['Total Trades:']), 1), 3),
                                 'hq': r['History Quality:']} for r in v]
                            for k, v in is_table.items()},
              'oos_after_commission': {s: {k: r[k] for k in ('net', 'net_at_7_round_trip', 'Profit Factor:',

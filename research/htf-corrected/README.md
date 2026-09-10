@@ -72,6 +72,31 @@ GBPJPY +357..+1 253 on IS, -106 OOS). The single positive OOS symbol (AUDNZD,
 not an edge. DFS details: `scripts/wf-results.json` is written under
 `research/htf-corrected/`.
 
+## Indices (US30 / US500 / USTEC / JP225) — same mechanism, new market
+`IndexBreakout.mq5` = corrected rig + two index-aware changes: entry air-gap guard
+expressed in ATR units (`InpMaxEntryAirGapFrac`, FX-pips guard would reject ~all
+index fills) and an optional server-hour session gate (US: 14–23, JP225: 0–10).
+History: broker server data, IS block 98% (2022–2024), OOS 100% (2024-07-2026-09),
+Model=1.
+
+Pre-registered grid TF{H1,H4} x channel{20,40,80} x session{off,on} = 12 configs x
+4 symbols; one global config selected on IS by mean net+comm@7 (none were
+aggregate-positive; best = h4-c80-sesson, -731). IS gives useful structural facts
+on costs (avg lots/trade x $7):
+
+| symbol | avg lots/trade (h4-c80-sesson) | commission per trade |
+|---|---|---|
+| US30 | 0.12 | 0.8 USD |
+| US500 | 0.77 | 5.4 USD |
+| USTEC | 0.19 | 1.4 USD |
+| JP225 | 4.7 | 33 USD (of 50 risk) |
+
+OOS on chosen h4-c80-sesson (untouched): US30 -211 (PF 0.77), US500 -588 (0.66),
+USTEC -150 (0.88), JP225 -1048 (1.13 gross +47). Total -1 996 across the four;
+gross is negative for 3/4 even before commission. As for FX, the IS heroes are
+period-bound (USTEC H1 extra-positive 2022 only), and JP225 is structurally
+commission-unviable at this sizing regardless of direction.
+
 ## Verdict
 None of the tested implementations yields a positive, stable, cost-aware
 expectancy. The framework (single-market/small-group rate curve breakouts with
@@ -80,8 +105,11 @@ yet profitable": the failure is spread, robust to one-time param/filter changes,
 to parameterized signal-TF/channel grid search, and worsens under corrected
 mechanics and real ticks. The walk-forward closes the residual question — no
 config was aggregate-positive in-sample, and the globally best config still
-lost 1 172 USD out-of-sample. Data and scripts used: `scripts/htf_research.py`,
-`research/htf-corrected/*.json`.
+lost 1 172 USD out-of-sample. The index line (4 indices, same corrected rig with
+ATR-relative gap guard and session gate) fails on the same walk-forward basis:
+no config aggregate-positive in-sample and chosen config -1 996 USD out-of-sample,
+with structural commission drag documented per symbol. Data and scripts used:
+`scripts/htf_research.py`, `research/htf-corrected/*.json`.
 
 Default disposition: do NOT trade this line on this $200 account (fractional
 trade sizes also fall below minimum lot at 0.25% risk).
