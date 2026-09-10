@@ -1,5 +1,5 @@
 #property copyright "HTFTrendBreakoutF"
-#property version "1.1"
+#property version "1.11"
 #property strict
 #property description "Single-change variant of the frozen V1 baseline: adds the rejection-strength filter (bar must close in the outer third of its own high-low range) on top of the identical H1 channel-breakout rig. All other signal, risk and exit logic is identical to HTFTrendBreakout. Set InpRejectStrength=0 to reproduce the baseline exactly."
 
@@ -27,7 +27,8 @@ int g_atr=INVALID_HANDLE;
 datetime g_lastBar=0,g_pendBar=0;
 bool g_pending=false,g_consumed=false,g_inPosition=false;
 int g_pendDir=0;
-double g_pendAtr=0,g_initSL=0,g_entryPrice=0,g_entryTime=0;
+double g_pendAtr=0,g_initSL=0,g_entryPrice=0;
+datetime g_entryTime=0;
 int g_signals=0,g_entries=0,g_closes=0,g_rejects=0,g_retries=0,g_trailMods=0,g_minlotRejects=0,g_filtered=0;
 string g_rejectReason="",g_status="Starting";
 
@@ -60,7 +61,7 @@ void SignalStep()
    else if(r[0].close<lo) dir=-1;
 // Rejection-strength filter: the breakout bar must close in the outer
 // InpRejectStrength fraction of its own high-low range (decisive, not marginal).
-   if(dir!=0 && InpRejectStrength>0 && InpRejectStrength<1)
+   if(!g_inPosition && dir!=0 && InpRejectStrength>0 && InpRejectStrength<1)
    {
       double range=r[0].high-r[0].low;
       bool decisive=range>0 && (dir>0 ? (r[0].close-r[0].low)>=InpRejectStrength*range
@@ -123,7 +124,7 @@ bool FindPosition()
          return true;
       }
    }
-   g_inPosition=false; return false;
+    g_inPosition=false; g_initSL=0; return false;
 }
 bool ClosePosition()
 {
@@ -133,7 +134,7 @@ bool ClosePosition()
       if(pt==0) continue;
       if(PositionGetString(POSITION_SYMBOL)==_Symbol && (ulong)PositionGetInteger(POSITION_MAGIC)==InpMagic)
       {
-         if(trade.PositionClose(pt)){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
+          if(trade.PositionClose(pt) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
       }
    }
    return false;
@@ -148,7 +149,10 @@ void TryEntry()
    double atr=g_pendAtr;
    if(atr<=0) return;
    double entry=g_pendDir>0?q.ask:q.bid;
+   double tickSize=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
+   if(tickSize<=0) return;
    double sl=entry-g_pendDir*InpStopAtr*atr;
+   sl=NormalizeDouble((g_pendDir>0?MathFloor(sl/tickSize):MathCeil(sl/tickSize))*tickSize,_Digits);
    double pip=Pip();
    double distance=g_pendDir*(entry-sl);
    if(distance<=0){ g_rejectReason="invalid stop distance"; Reject(); return; }
@@ -189,7 +193,7 @@ void TryEntry()
    if(!sent || !ResultOk())
    {
       g_rejectReason="order rejected: "+trade.ResultRetcodeDescription();
-      g_rejects++;
+      g_rejects++; g_pending=false; // Do not resubmit an ambiguous broker response.
       return;
    }
    g_entries++;
@@ -223,8 +227,8 @@ void ManageTrailing()
       if(since<1) return;
       int look=MathMin(since,500);
       double h[]; ArraySetAsSeries(h,true);
-      if(CopyHigh(_Symbol,PERIOD_H1,1,look,h)!=look) return;
-      double ref=dir>0?h[0]:h[0];
+      if((dir>0?CopyHigh(_Symbol,PERIOD_H1,1,look,h):CopyLow(_Symbol,PERIOD_H1,1,look,h))!=look) return;
+      double ref=h[0];
       for(int j=1;j<look;j++) ref=dir>0?MathMax(ref,h[j]):MathMin(ref,h[j]);
       double atr=GetATR(iTime(_Symbol,PERIOD_H1,1));
       if(atr<=0) return;
@@ -234,9 +238,11 @@ void ManageTrailing()
       double current=dir>0?q.bid:q.ask;
       double gapLevel=(MathMax(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL),SymbolInfoInteger(_Symbol,SYMBOL_TRADE_FREEZE_LEVEL))+1)*_Point;
       double tick=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
-      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick)) return;
+      if(tick<=0) return;
+      cand=NormalizeDouble((dir>0?MathFloor(cand/tick):MathCeil(cand/tick))*tick,_Digits);
+      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick*0.99)) return;
       ulong ticket=PositionGetInteger(POSITION_TICKET);
-      if(trade.PositionModify(ticket,cand,0)){ g_trailMods++; g_status="Trail stop updated"; }
+      if(trade.PositionModify(ticket,cand,0) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_trailMods++; g_status="Trail stop updated"; }
    }
 }
 void Display()
@@ -279,10 +285,12 @@ void OnDeinit(const int reason)
 void OnTimer(){ ManageTrailing(); }
 void OnTick()
 {
+   FindPosition();
    datetime bar=iTime(_Symbol,PERIOD_H1,1);
    if(bar!=g_lastBar)
    {
       g_lastBar=bar;
+      g_pending=false;
       SignalStep();
    }
 // Manage trailing before entry-only paths so management is never skipped.

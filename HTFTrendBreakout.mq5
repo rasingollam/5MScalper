@@ -1,9 +1,10 @@
 #property copyright "HTFTrendBreakout"
-#property version "1.0"
+#property version "1.01"
 #property strict
 #property description "Frozen V1 baseline: H1 breakout of the previous InpChannelBars-range (excludes signal/forming bars), ATR(20) volatility, market entry on the first tick after the confirming close, no fixed TP, volatility trailing stop tightened only. One position per symbol, no pyramiding, no overnight liquidation, no reversal on opposite signal. Position size from initial-stop risk exactly like the account's risk model."
 
 input group "Signal"
+input ENUM_TIMEFRAMES InpSignalTF=PERIOD_H1;
 input int InpChannelBars=40;
 input int InpATRPeriod=20;
 input double InpStopAtr=2.5;
@@ -25,14 +26,15 @@ int g_atr=INVALID_HANDLE;
 datetime g_lastBar=0,g_pendBar=0;
 bool g_pending=false,g_consumed=false,g_inPosition=false;
 int g_pendDir=0;
-double g_pendAtr=0,g_initSL=0,g_entryPrice=0,g_entryTime=0;
+double g_pendAtr=0,g_initSL=0,g_entryPrice=0;
+datetime g_entryTime=0;
 int g_signals=0,g_entries=0,g_closes=0,g_rejects=0,g_retries=0,g_trailMods=0,g_minlotRejects=0;
 string g_rejectReason="",g_status="Starting";
 
 double Pip(){ return (_Digits==3 || _Digits==5)?10*_Point:_Point; }
 double GetATR(datetime barTime)
 {
-   int sh=iBarShift(_Symbol,PERIOD_H1,barTime,false);
+   int sh=iBarShift(_Symbol,InpSignalTF,barTime,false);
    if(sh<1) return 0;
    double a[1];
    if(CopyBuffer(g_atr,0,sh,1,a)!=1 || a[0]<=0) return 0;
@@ -44,7 +46,7 @@ void SignalStep()
 // channel uses bars 2..(1+InpChannelBars), ATR uses completed bars at shift 1.
    int need=1+InpChannelBars+1;
    MqlRates r[]; ArraySetAsSeries(r,true);
-   if(CopyRates(_Symbol,PERIOD_H1,1,need,r)!=need) return;
+   if(CopyRates(_Symbol,InpSignalTF,1,need,r)!=need) return;
    double hi=r[1].high,lo=r[1].low;
    for(int j=2;j<=InpChannelBars;j++)
    {
@@ -104,7 +106,7 @@ g_entryPrice=PositionGetDouble(POSITION_PRICE_OPEN);
          return true;
       }
    }
-   g_inPosition=false; return false;
+    g_inPosition=false; g_initSL=0; return false;
 }
 bool ClosePosition()
 {
@@ -114,7 +116,7 @@ bool ClosePosition()
       if(pt==0) continue;
       if(PositionGetString(POSITION_SYMBOL)==_Symbol && (ulong)PositionGetInteger(POSITION_MAGIC)==InpMagic)
       {
-         if(trade.PositionClose(pt)){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
+          if(trade.PositionClose(pt) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
       }
    }
    return false;
@@ -129,12 +131,15 @@ void TryEntry()
    double atr=g_pendAtr;
    if(atr<=0) return;
    double entry=g_pendDir>0?q.ask:q.bid;
+   double tickSize=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
+   if(tickSize<=0) return;
    double sl=entry-g_pendDir*InpStopAtr*atr;
+   sl=NormalizeDouble((g_pendDir>0?MathFloor(sl/tickSize):MathCeil(sl/tickSize))*tickSize,_Digits);
    double pip=Pip();
    double distance=g_pendDir*(entry-sl);
    if(distance<=0){ g_rejectReason="invalid stop distance"; Reject(); return; }
 // Entry-gap guard: current price must sit near the signal close, else the move gapped away.
-   double close=iClose(_Symbol,PERIOD_H1,iBarShift(_Symbol,PERIOD_H1,g_pendBar,false));
+   double close=iClose(_Symbol,InpSignalTF,iBarShift(_Symbol,InpSignalTF,g_pendBar,false));
    double gap=(g_pendDir>0?q.bid:q.ask)-close; gap=MathAbs(gap);
    if(gap>InpMaxEntryGapPips*pip)
    {
@@ -170,7 +175,7 @@ void TryEntry()
    if(!sent || !ResultOk())
    {
       g_rejectReason="order rejected: "+trade.ResultRetcodeDescription();
-      g_rejects++;
+      g_rejects++; g_pending=false; // Do not resubmit an ambiguous broker response.
       return;
    }
    g_entries++;
@@ -200,14 +205,14 @@ void ManageTrailing()
       if(dir==0) return;
       double sl=PositionGetDouble(POSITION_SL);
       datetime t=(datetime)PositionGetInteger(POSITION_TIME);
-      int since=iBarShift(_Symbol,PERIOD_H1,t,false);
+      int since=iBarShift(_Symbol,InpSignalTF,t,false);
       if(since<1) return;
       int look=MathMin(since,500);
       double h[]; ArraySetAsSeries(h,true);
-      if(CopyHigh(_Symbol,PERIOD_H1,1,look,h)!=look) return;
-      double ref=dir>0?h[0]:h[0];
+      if((dir>0?CopyHigh(_Symbol,InpSignalTF,1,look,h):CopyLow(_Symbol,InpSignalTF,1,look,h))!=look) return;
+      double ref=h[0];
       for(int j=1;j<look;j++) ref=dir>0?MathMax(ref,h[j]):MathMin(ref,h[j]);
-      double atr=GetATR(iTime(_Symbol,PERIOD_H1,1));
+      double atr=GetATR(iTime(_Symbol,InpSignalTF,1));
       if(atr<=0) return;
       double cand=dir>0?ref-InpTrailAtr*atr:ref+InpTrailAtr*atr;
       if(g_initSL>0 && dir*(cand-g_initSL)<0) cand=g_initSL;   // never loosen original risk
@@ -215,9 +220,11 @@ void ManageTrailing()
       double current=dir>0?q.bid:q.ask;
       double gapLevel=(MathMax(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL),SymbolInfoInteger(_Symbol,SYMBOL_TRADE_FREEZE_LEVEL))+1)*_Point;
       double tick=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
-      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick)) return;
+      if(tick<=0) return;
+      cand=NormalizeDouble((dir>0?MathFloor(cand/tick):MathCeil(cand/tick))*tick,_Digits);
+      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick*0.99)) return;
       ulong ticket=PositionGetInteger(POSITION_TICKET);
-      if(trade.PositionModify(ticket,cand,0)){ g_trailMods++; g_status="Trail stop updated"; }
+      if(trade.PositionModify(ticket,cand,0) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_trailMods++; g_status="Trail stop updated"; }
    }
 }
 void Display()
@@ -238,9 +245,9 @@ int OnInit()
    trade.SetDeviationInPoints(InpDeviationPoints);
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetAsyncMode(false);
-   g_atr=iATR(_Symbol,PERIOD_H1,InpATRPeriod);
+   g_atr=iATR(_Symbol,InpSignalTF,InpATRPeriod);
    if(g_atr==INVALID_HANDLE) return INIT_FAILED;
-   g_lastBar=iTime(_Symbol,PERIOD_H1,1);
+   g_lastBar=iTime(_Symbol,InpSignalTF,1);
    if(!EventSetTimer(1)) return INIT_FAILED;
    g_inPosition=FindPosition();
    if(g_inPosition) g_initSL=PositionGetDouble(POSITION_SL);
@@ -259,10 +266,12 @@ void OnDeinit(const int reason)
 void OnTimer(){ ManageTrailing(); }
 void OnTick()
 {
-   datetime bar=iTime(_Symbol,PERIOD_H1,1);
+   FindPosition(); // Refresh broker state before evaluating a new signal.
+   datetime bar=iTime(_Symbol,InpSignalTF,1);
    if(bar!=g_lastBar)
    {
       g_lastBar=bar;
+      g_pending=false; // Expire the previous bar's unfilled setup.
       SignalStep();
    }
 // Manage trailing before entry-only paths so management is never skipped.

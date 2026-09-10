@@ -1,0 +1,98 @@
+{
+  "corrected_base": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-2 212.07",
+    "Profit Factor:": "0.85",
+    "Total Trades:": "751",
+    "Profit Trades (% of total):": "252 (33.56%)",
+    "Average profit trade:": "50.74",
+    "Average loss trade:": "-30.06",
+    "Expected Payoff:": "-2.95",
+    "Equity Drawdown Maximal:": "3 301.15 (15.77%)",
+    "Balance Drawdown Maximal:": "3 242.53 (15.53%)",
+    "net": -2212.07,
+    "entry_lots": 108.11,
+    "commission": 0.0,
+    "swap": -241.65,
+    "net_at_7_round_trip": -2968.84,
+    "annual_net": {
+      "2022": 53.88,
+      "2023": -340.06,
+      "2024": -1115.2,
+      "2025": -523.16,
+      "2026": -287.53
+    },
+    "longest_balance_underwater_days": 1473.4,
+    "top_10_winners": 2131.4700000000003,
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16385
+    }
+  },
+  "corrected_close": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-2 206.91",
+    "Profit Factor:": "0.84",
+    "Total Trades:": "694",
+    "Profit Trades (% of total):": "228 (32.85%)",
+    "Average profit trade:": "51.81",
+    "Average loss trade:": "-30.09",
+    "Expected Payoff:": "-3.18",
+    "Equity Drawdown Maximal:": "3 117.71 (14.99%)",
+    "Balance Drawdown Maximal:": "3 058.13 (14.74%)",
+    "net": -2206.91,
+    "entry_lots": 99.4,
+    "commission": 0.0,
+    "swap": -229.7,
+    "net_at_7_round_trip": -2902.71,
+    "annual_net": {
+      "2022": -5.5,
+      "2023": -518.23,
+      "2024": -874.88,
+      "2025": -548.82,
+      "2026": -259.48
+    },
+    "longest_balance_underwater_days": 1390.4,
+    "top_10_winners": 2105.89,
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpRejectStrength": 0.6667
+    }
+  },
+  "corrected_veto": {
+    "Period:": "H1 (2022.01.01 - 2026.09.08)",
+    "History Quality:": "100%",
+    "Total Net Profit:": "-2 172.66",
+    "Profit Factor:": "0.85",
+    "Total Trades:": "747",
+    "Profit Trades (% of total):": "251 (33.60%)",
+    "Average profit trade:": "50.65",
+    "Average loss trade:": "-30.01",
+    "Expected Payoff:": "-2.91",
+    "Equity Drawdown Maximal:": "3 313.52 (15.80%)",
+    "Balance Drawdown Maximal:": "3 254.90 (15.56%)",
+    "net": -2172.66,
+    "entry_lots": 107.71,
+    "commission": 0.0,
+    "swap": -242.04,
+    "net_at_7_round_trip": -2926.63,
+    "annual_net": {
+      "2022": 74.74,
+      "2023": -344.25,
+      "2024": -1108.5,
+      "2025": -490.14,
+      "2026": -304.51
+    },
+    "longest_balance_underwater_days": 1473.4,
+    "top_10_winners": 2131.4700000000003,
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpVetoADX": 25
+    }
+  }
+}

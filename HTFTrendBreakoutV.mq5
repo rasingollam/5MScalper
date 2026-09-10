@@ -1,5 +1,5 @@
 #property copyright "HTFTrendBreakoutV"
-#property version "1.2"
+#property version "1.21"
 #property strict
 #property description "Single-change variant of the frozen V1 baseline: adds the opposing-trend veto (skip buys when M15 ADX(14)>InpVetoADX and EMA20<EMA50; skip sells when ADX>InpVetoADX and EMA20>EMA50). Measured on the last completed M15 bar at signal time, so no lookahead. All other signal, risk and exit logic identical to HTFTrendBreakout. Set InpVetoADX=0 to reproduce the baseline exactly."
 
@@ -29,9 +29,11 @@ int g_atr=INVALID_HANDLE,g_adx=INVALID_HANDLE,g_emaF=INVALID_HANDLE,g_emaS=INVAL
 datetime g_lastBar=0,g_pendBar=0;
 bool g_pending=false,g_consumed=false,g_inPosition=false;
 int g_pendDir=0;
-double g_pendAtr=0,g_initSL=0,g_entryPrice=0,g_entryTime=0;
+double g_pendAtr=0,g_initSL=0,g_entryPrice=0;
+datetime g_entryTime=0;
 int g_signals=0,g_entries=0,g_closes=0,g_rejects=0,g_retries=0,g_trailMods=0,g_minlotRejects=0,g_vetoed=0;
 string g_rejectReason="",g_status="Starting";
+int g_indicatorBlocks=0;
 
 double Pip(){ return (_Digits==3 || _Digits==5)?10*_Point:_Point; }
 double GetATR(datetime barTime)
@@ -47,11 +49,12 @@ bool TrendVetoed(int dir)
 // First call runs after g_adx/g_emaF/g_emaS are created; shift 1 = last completed M15 bar.
    if(InpVetoADX<=0) return false;
    double adx[1],f[1],s[1];
-   if(CopyBuffer(g_adx,0,1,1,adx)!=1) return false;
-   if(CopyBuffer(g_emaF,0,1,1,f)!=1) return false;
-   if(CopyBuffer(g_emaS,0,1,1,s)!=1) return false;
-   if(!MathIsValidNumber(adx[0]) || !MathIsValidNumber(f[0]) || !MathIsValidNumber(s[0])) return false;
-   if(adx[0]<InpVetoADX) return false;
+   if(CopyBuffer(g_adx,0,1,1,adx)!=1 || CopyBuffer(g_emaF,0,1,1,f)!=1 || CopyBuffer(g_emaS,0,1,1,s)!=1)
+   { g_indicatorBlocks++; return true; }
+   if(!MathIsValidNumber(adx[0]) || !MathIsValidNumber(f[0]) || !MathIsValidNumber(s[0])
+      || adx[0]==EMPTY_VALUE || f[0]==EMPTY_VALUE || s[0]==EMPTY_VALUE)
+   { g_indicatorBlocks++; return true; }
+   if(adx[0]<=InpVetoADX) return false;
    return dir>0 ? f[0]<s[0] : f[0]>s[0];
 }
 void SignalStep()
@@ -73,7 +76,7 @@ void SignalStep()
    if(r[0].close>hi) dir=1;
    else if(r[0].close<lo) dir=-1;
 // Opposing-trend veto: skip entries into a strong opposite M15 trend.
-   if(dir!=0 && TrendVetoed(dir))
+   if(!g_inPosition && dir!=0 && TrendVetoed(dir))
    {
       g_vetoed++;
       g_status=StringFormat("Vetoed %s bar %s (M15 ADX>%s %s)",dir>0?"LONG":"SHORT",
@@ -131,7 +134,7 @@ bool FindPosition()
          return true;
       }
    }
-   g_inPosition=false; return false;
+    g_inPosition=false; g_initSL=0; return false;
 }
 bool ClosePosition()
 {
@@ -141,7 +144,7 @@ bool ClosePosition()
       if(pt==0) continue;
       if(PositionGetString(POSITION_SYMBOL)==_Symbol && (ulong)PositionGetInteger(POSITION_MAGIC)==InpMagic)
       {
-         if(trade.PositionClose(pt)){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
+          if(trade.PositionClose(pt) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_closes++; g_inPosition=false; g_initSL=0; return true; }
       }
    }
    return false;
@@ -156,7 +159,10 @@ void TryEntry()
    double atr=g_pendAtr;
    if(atr<=0) return;
    double entry=g_pendDir>0?q.ask:q.bid;
+   double tickSize=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
+   if(tickSize<=0) return;
    double sl=entry-g_pendDir*InpStopAtr*atr;
+   sl=NormalizeDouble((g_pendDir>0?MathFloor(sl/tickSize):MathCeil(sl/tickSize))*tickSize,_Digits);
    double pip=Pip();
    double distance=g_pendDir*(entry-sl);
    if(distance<=0){ g_rejectReason="invalid stop distance"; Reject(); return; }
@@ -197,7 +203,7 @@ void TryEntry()
    if(!sent || !ResultOk())
    {
       g_rejectReason="order rejected: "+trade.ResultRetcodeDescription();
-      g_rejects++;
+      g_rejects++; g_pending=false; // Do not resubmit an ambiguous broker response.
       return;
    }
    g_entries++;
@@ -231,8 +237,8 @@ void ManageTrailing()
       if(since<1) return;
       int look=MathMin(since,500);
       double h[]; ArraySetAsSeries(h,true);
-      if(CopyHigh(_Symbol,PERIOD_H1,1,look,h)!=look) return;
-      double ref=dir>0?h[0]:h[0];
+      if((dir>0?CopyHigh(_Symbol,PERIOD_H1,1,look,h):CopyLow(_Symbol,PERIOD_H1,1,look,h))!=look) return;
+      double ref=h[0];
       for(int j=1;j<look;j++) ref=dir>0?MathMax(ref,h[j]):MathMin(ref,h[j]);
       double atr=GetATR(iTime(_Symbol,PERIOD_H1,1));
       if(atr<=0) return;
@@ -242,9 +248,11 @@ void ManageTrailing()
       double current=dir>0?q.bid:q.ask;
       double gapLevel=(MathMax(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL),SymbolInfoInteger(_Symbol,SYMBOL_TRADE_FREEZE_LEVEL))+1)*_Point;
       double tick=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
-      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick)) return;
+      if(tick<=0) return;
+      cand=NormalizeDouble((dir>0?MathFloor(cand/tick):MathCeil(cand/tick))*tick,_Digits);
+      if(dir*(current-cand)<gapLevel || (sl>0 && dir*(cand-sl)<tick*0.99)) return;
       ulong ticket=PositionGetInteger(POSITION_TICKET);
-      if(trade.PositionModify(ticket,cand,0)){ g_trailMods++; g_status="Trail stop updated"; }
+      if(trade.PositionModify(ticket,cand,0) && trade.ResultRetcode()==TRADE_RETCODE_DONE){ g_trailMods++; g_status="Trail stop updated"; }
    }
 }
 void Display()
@@ -285,6 +293,7 @@ int OnInit()
 }
 void OnDeinit(const int reason)
 {
+   PrintFormat("HTF indicator unavailable blocks=%d",g_indicatorBlocks);
    PrintFormat("HTF summary %s: signals=%d, vetoed=%d, entries=%d, closes=%d, trailMods=%d, rejects=%d, minlotBlocks=%d",
       _Symbol,g_signals,g_vetoed,g_entries,g_closes,g_trailMods,g_rejects,g_minlotRejects);
    EventKillTimer(); Comment("");
@@ -297,10 +306,12 @@ void OnDeinit(const int reason)
 void OnTimer(){ ManageTrailing(); }
 void OnTick()
 {
+   FindPosition();
    datetime bar=iTime(_Symbol,PERIOD_H1,1);
    if(bar!=g_lastBar)
    {
       g_lastBar=bar;
+      g_pending=false;
       SignalStep();
    }
 // Manage trailing before entry-only paths so management is never skipped.

@@ -1,0 +1,58 @@
+{
+  "EURUSD": {
+    "Period:": "H1 (2026.01.01 - 2026.09.08)",
+    "History Quality:": "100% real ticks",
+    "Total Net Profit:": "-284.55",
+    "Profit Factor:": "0.54",
+    "Total Trades:": "26",
+    "Profit Trades (% of total):": "6 (23.08%)",
+    "Average profit trade:": "55.41",
+    "Average loss trade:": "-30.85",
+    "Expected Payoff:": "-10.94",
+    "Equity Drawdown Maximal:": "369.12 (1.84%)",
+    "Balance Drawdown Maximal:": "291.08 (1.45%)",
+    "net": -284.55,
+    "entry_lots": 2.23,
+    "commission": 0.0,
+    "swap": -15.31,
+    "net_at_7_round_trip": -300.16,
+    "annual_net": {
+      "2026": -284.55
+    },
+    "longest_balance_underwater_days": 1465.0,
+    "top_10_winners": 276.90999999999997,
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  },
+  "USDJPY": {
+    "Period:": "H1 (2026.01.01 - 2026.09.08)",
+    "History Quality:": "100% real ticks",
+    "Total Net Profit:": "-125.25",
+    "Profit Factor:": "0.83",
+    "Total Trades:": "32",
+    "Profit Trades (% of total):": "8 (25.00%)",
+    "Average profit trade:": "77.33",
+    "Average loss trade:": "-31.00",
+    "Expected Payoff:": "-3.91",
+    "Equity Drawdown Maximal:": "513.95 (2.55%)",
+    "Balance Drawdown Maximal:": "452.82 (2.26%)",
+    "net": -125.25,
+    "entry_lots": 2.96,
+    "commission": 0.0,
+    "swap": -17.22,
+    "net_at_7_round_trip": -145.97,
+    "annual_net": {
+      "2026": -125.25
+    },
+    "longest_balance_underwater_days": 1465.2,
+    "top_10_winners": 604.92,
+    "symbol": "USDJPY",
+    "timeframe": "H1",
+    "inputs": {
+      "InpSignalTF": 16388
+    }
+  }
+}
